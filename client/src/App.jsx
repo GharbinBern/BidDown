@@ -7,7 +7,6 @@ import HomePage from './pages/home'
 import MarketplacePage from './pages/marketplace'
 import JobDetailPage from './pages/job'
 import DashboardPage from './pages/dashboard'
-import AnalyticsPage from './pages/analytics'
 import { useAuthStore } from './store'
 
 const style = `
@@ -168,8 +167,21 @@ const style = `
   .sub-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
   .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
-  .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+  .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; display: flex; justify-content: center; align-items: center; }
   .empty h3 { font-family: 'Syne', sans-serif; font-size: 18px; color: var(--text); margin-bottom: 8px; }
+
+  .loading-panel {
+    background: linear-gradient(120deg, var(--card) 25%, #f7fbff 40%, var(--card) 55%);
+    background-size: 200% 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    animation: shimmer 1.6s linear infinite;
+  }
+  .loading-row { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
+  .loading-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--accent); animation: pulse 1.1s ease-in-out infinite; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
   @media(max-width: 600px) { .analytics-grid { grid-template-columns: 1fr; } .form-row { grid-template-columns: 1fr; } .nav-tabs { display: none; } }
 `;
@@ -177,6 +189,12 @@ const style = `
 function NavbarComponent() {
   const { isAuthenticated, user, logout } = useAuthStore()
   const navigate = useNavigate()
+  const roles = user?.roles || []
+  const roleLabel = roles.includes('buyer') && roles.includes('seller')
+    ? 'Buyer + Seller'
+    : roles.includes('seller')
+      ? 'Seller'
+      : 'Buyer'
   
   return (
     <nav className="nav">
@@ -185,15 +203,14 @@ function NavbarComponent() {
         {isAuthenticated && (
           <>
             <button className="nav-tab" onClick={() => navigate('/marketplace')}>Marketplace</button>
-            <button className="nav-tab" onClick={() => navigate('/dashboard')}>Dashboard</button>
-            <button className="nav-tab" onClick={() => navigate('/analytics')}>Analytics</button>
+            <button className="nav-tab" onClick={() => navigate('/dashboard')}>My Space</button>
           </>
         )}
       </div>
       <div className="nav-right">
         {isAuthenticated ? (
           <>
-            <span className="badge">Buyer</span>
+            <span className="badge">{roleLabel}</span>
             <span style={{ fontSize: 13, color: 'var(--muted)' }}>{user?.name}</span>
             <button className="btn btn-ghost btn-sm" onClick={() => { logout(); navigate('/'); }}>Sign Out</button>
           </>
@@ -219,7 +236,7 @@ function AppContent() {
       <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />} />
       <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" /> : <RegisterPage />} />
       <Route path="/dashboard" element={isAuthenticated ? <DashboardPage /> : <Navigate to="/login" />} />
-      <Route path="/analytics" element={isAuthenticated ? <AnalyticsPage /> : <Navigate to="/login" />} />
+      <Route path="/analytics" element={<Navigate to="/dashboard" />} />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   )

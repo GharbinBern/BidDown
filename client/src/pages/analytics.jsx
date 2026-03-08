@@ -81,7 +81,11 @@ export default function AnalyticsPage() {
   return (
     <div className="main">
       <div className="section-title">Market <span>Analytics</span></div>
-      {loading && <div className="card" style={{ marginBottom: 16, color: 'var(--muted)', fontSize: 13 }}>Loading analytics...</div>}
+      {loading && (
+        <div className="loading-panel">
+          <div className="loading-row"><span className="loading-dot" />Crunching market analytics...</div>
+        </div>
+      )}
       <div className="dashboard-grid" style={{ marginBottom: 24 }}>
         <div className="dash-card"><div className="dash-card-label">Avg Bids per Request</div><div className="dash-card-value accent">{avgBidsPerRequest.toFixed(1)}</div></div>
         <div className="dash-card"><div className="dash-card-label">Avg Price Drop</div><div className="dash-card-value green">{avgSavingsPercent.toFixed(1)}%</div><div className="dash-card-sub">below buyer budget cap</div></div>

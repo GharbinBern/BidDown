@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store'
 import toast from 'react-hot-toast'
+import { CreditCard } from 'lucide-react'
 import { api } from '../api'
 
 function mapStatusPill(status) {
@@ -10,8 +12,9 @@ function mapStatusPill(status) {
 }
 
 export default function DashboardPage() {
+  const navigate = useNavigate()
   const { user } = useAuthStore()
-  const [dashTab, setDashTab] = useState("requests")
+  const [dashTab, setDashTab] = useState('requests')
   const [jobs, setJobs] = useState([])
   const [myBids, setMyBids] = useState([])
   const [loading, setLoading] = useState(true)
@@ -46,6 +49,24 @@ export default function DashboardPage() {
   }, [])
 
   const userId = user?._id || user?.id
+  const roles = user?.roles || []
+  const isBuyer = roles.includes('buyer')
+  const isSeller = roles.includes('seller')
+
+  const tabs = useMemo(() => {
+    const result = []
+    if (isBuyer) result.push({ key: 'requests', label: 'My Requests' })
+    if (isSeller) result.push({ key: 'bids', label: 'My Bids' })
+    result.push({ key: 'transactions', label: 'Transactions' })
+    return result
+  }, [isBuyer, isSeller])
+
+  useEffect(() => {
+    if (!tabs.some((t) => t.key === dashTab)) {
+      setDashTab(tabs[0]?.key || 'transactions')
+    }
+  }, [tabs, dashTab])
+
   const myListings = useMemo(
     () => jobs.filter((job) => String(job.owner_id?._id || job.owner_id) === String(userId)),
     [jobs, userId]
@@ -63,8 +84,12 @@ export default function DashboardPage() {
 
   return (
     <div className="main">
-      <div className="section-title">Your <span>Dashboard</span></div>
-      {loading && <div className="card" style={{ marginBottom: 16, color: 'var(--muted)', fontSize: 13 }}>Loading dashboard...</div>}
+      <div className="section-title">Your <span>Space</span></div>
+      {loading && (
+        <div className="loading-panel">
+          <div className="loading-row"><span className="loading-dot" />Preparing your workspace metrics...</div>
+        </div>
+      )}
       <div className="dashboard-grid">
         <div className="dash-card"><div className="dash-card-label">Active Requests</div><div className="dash-card-value accent">{activeRequests}</div><div className="dash-card-sub">{receivingBids} receiving bids</div></div>
         <div className="dash-card"><div className="dash-card-label">Total Saved</div><div className="dash-card-value green">${totalSaved.toLocaleString()}</div><div className="dash-card-sub">vs. budget cap on accepted bids</div></div>
@@ -72,13 +97,13 @@ export default function DashboardPage() {
         <div className="dash-card"><div className="dash-card-label">Avg Bid Reduction</div><div className="dash-card-value green">{avgReduction.toFixed(1)}%</div><div className="dash-card-sub">below your budget cap</div></div>
       </div>
       <div className="sub-tabs">
-        {["requests", "my bids", "transactions"].map(t => (
-          <button key={t} className={`sub-tab ${dashTab === t ? "active" : ""}`} onClick={() => setDashTab(t)}>
-            {t.toUpperCase()}
+        {tabs.map((t) => (
+          <button key={t.key} className={`sub-tab ${dashTab === t.key ? 'active' : ''}`} onClick={() => setDashTab(t.key)}>
+            {t.label}
           </button>
         ))}
       </div>
-      {dashTab === "requests" && (
+      {dashTab === 'requests' && (
         <table className="table">
           <thead><tr><th>Request</th><th>Category</th><th>Budget</th><th>Bids</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>
@@ -89,7 +114,15 @@ export default function DashboardPage() {
                 <td style={{ color: "var(--accent)", fontWeight: 700 }}>${l.budget.toLocaleString()}</td>
                 <td>{l.bids_count || 0}</td>
                 <td><span className={`status-pill ${mapStatusPill(l.status)}`}>{l.status}</span></td>
-                <td><button type="button" className="btn btn-ghost btn-sm" disabled>Manage</button></td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => navigate(`/marketplace?jobId=${l._id}`)}
+                  >
+                    Manage
+                  </button>
+                </td>
               </tr>
             ))}
             {myListings.length === 0 && (
@@ -100,7 +133,7 @@ export default function DashboardPage() {
           </tbody>
         </table>
       )}
-      {dashTab === "my bids" && (
+      {dashTab === 'bids' && (
         <table className="table">
           <thead><tr><th>Request</th><th>Your Bid</th><th>Status</th><th>Submitted</th></tr></thead>
           <tbody>
@@ -120,9 +153,9 @@ export default function DashboardPage() {
           </tbody>
         </table>
       )}
-      {dashTab === "transactions" && (
+      {dashTab === 'transactions' && (
         <div className="empty">
-          <div className="empty-icon">💳</div>
+          <div className="empty-icon"><CreditCard size={44} /></div>
           <h3>{myListings.filter((j) => j.status === 'closed' || j.status === 'completed').length} closed/completed requests</h3>
           <p>Transactions and escrow records will appear here as payment flow is connected.</p>
         </div>

@@ -39,17 +39,7 @@ export default function Navbar() {
                       : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
-                  Dashboard
-                </Link>
-                <Link
-                  to="/analytics"
-                  className={`text-sm font-medium transition-colors ${
-                    isActive('/analytics')
-                      ? 'text-accent'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  Analytics
+                  My Space
                 </Link>
               </div>
             )}

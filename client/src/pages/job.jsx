@@ -13,7 +13,13 @@ export default function JobDetailPage() {
   }, [id])
 
   if (loading) {
-    return <div className="text-center py-20">Loading...</div>
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20">
+        <div className="loading-panel" style={{ marginBottom: 0 }}>
+          <div className="loading-row"><span className="loading-dot" />Loading request details...</div>
+        </div>
+      </div>
+    )
   }
 
   if (!selectedJob) {
