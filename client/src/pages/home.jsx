@@ -12,9 +12,6 @@ export default function HomePage() {
         <h1>You set the price.<br /><span className="highlight">Sellers compete.</span></h1>
         <p>Post what you need, set your maximum budget, and watch verified sellers bid down to win your business.</p>
         <div className="hero-btns">
-          <button className="btn btn-primary" style={{ padding: "12px 28px", fontSize: "14px" }} onClick={() => navigate(isAuthenticated ? '/marketplace' : '/register')}>
-            {isAuthenticated ? 'Browse Requests' : 'Get Started'}
-          </button>
           <button className="btn btn-ghost" style={{ padding: "12px 28px", fontSize: "14px" }} onClick={() => navigate('/marketplace')}>
             See Marketplace
           </button>

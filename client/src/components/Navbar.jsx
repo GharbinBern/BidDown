@@ -8,13 +8,13 @@ export default function Navbar() {
   const isActive = (path) => location.pathname === path
 
   return (
-    <nav className="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
+    <nav className="bg-white/90 backdrop-blur border-b border-blue-100 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
             <span className="text-2xl font-bold text-accent">Bid</span>
-            <span className="text-2xl font-bold text-gray-100">Down</span>
+            <span className="text-2xl font-bold text-slate-900">Down</span>
           </Link>
 
           {/* Navigation */}
@@ -26,7 +26,7 @@ export default function Navbar() {
                   className={`text-sm font-medium transition-colors ${
                     isActive('/marketplace')
                       ? 'text-accent'
-                      : 'text-gray-400 hover:text-gray-100'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   Marketplace
@@ -36,7 +36,7 @@ export default function Navbar() {
                   className={`text-sm font-medium transition-colors ${
                     isActive('/dashboard')
                       ? 'text-accent'
-                      : 'text-gray-400 hover:text-gray-100'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   Dashboard
@@ -46,7 +46,7 @@ export default function Navbar() {
                   className={`text-sm font-medium transition-colors ${
                     isActive('/analytics')
                       ? 'text-accent'
-                      : 'text-gray-400 hover:text-gray-100'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   Analytics
@@ -57,7 +57,7 @@ export default function Navbar() {
             {/* Auth buttons */}
             {isAuthenticated ? (
               <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-400">{user?.name}</span>
+                <span className="text-sm text-slate-600">{user?.name}</span>
                 <button
                   onClick={logout}
                   className="btn-ghost btn-sm"

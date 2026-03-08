@@ -7,8 +7,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        accent: '#f0c040',
-        accent2: '#e05a5a',
+        accent: '#2563eb',
+        accent2: '#dc2626',
       },
     },
   },

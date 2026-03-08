@@ -4,11 +4,11 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-accent text-black px-6 py-2 rounded-lg font-medium hover:bg-yellow-300 transition-all;
+    @apply bg-accent text-white px-6 py-2 rounded-lg font-medium hover:brightness-95 transition-all;
   }
 
   .btn-ghost {
-    @apply bg-transparent border border-gray-600 text-gray-300 px-6 py-2 rounded-lg hover:border-gray-400 transition-all;
+    @apply bg-white border border-blue-200 text-slate-700 px-6 py-2 rounded-lg hover:border-blue-400 transition-all;
   }
 
   .btn-sm {
@@ -16,7 +16,7 @@
   }
 
   .card {
-    @apply bg-gray-900 border border-gray-800 rounded-lg p-6;
+    @apply bg-white border border-blue-100 rounded-lg p-6;
   }
 
   .section-title {
@@ -24,6 +24,6 @@
   }
 
   .input-field {
-    @apply w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-accent;
+    @apply w-full bg-white border border-blue-200 rounded-lg px-4 py-2 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-accent;
   }
 }
