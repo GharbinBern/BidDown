@@ -25,6 +25,17 @@ const errorHandler = (err, req, res, next) => {
     return res.status(401).json({ error: 'Token expired' });
   }
 
+  // MongoDB connectivity issues
+  if (
+    err.name === 'MongooseServerSelectionError' ||
+    err.name === 'MongoServerSelectionError' ||
+    /buffering timed out/i.test(err.message || '')
+  ) {
+    return res.status(503).json({
+      error: 'Database unavailable. Check MONGODB_URI, DNS resolution, and Atlas IP allowlist.',
+    });
+  }
+
   // Default error
   res.status(err.status || 500).json({
     error: err.message || 'Internal server error',

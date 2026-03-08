@@ -15,6 +15,14 @@ import errorHandler from './middleware/errorHandler.js';
 
 dotenv.config();
 
+if (!process.env.JWT_SECRET) {
+  console.error('Missing JWT_SECRET in server/.env. Set a long random string and restart the server.');
+  process.exit(1);
+}
+
+// Fail fast if MongoDB is unavailable instead of buffering model operations.
+mongoose.set('bufferCommands', false);
+
 const app = express();
 
 // Middleware
@@ -26,22 +34,41 @@ app.use(cors({
 }));
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => {
-  console.log('Connected to MongoDB');
-}).catch(err => {
-  console.warn('⚠ MongoDB connection error (development mode continues):', err.message);
-});
+const mongoUri = process.env.MONGODB_URI;
+const hasPlaceholderMongoUri =
+  !mongoUri ||
+  mongoUri.includes('username:password@') ||
+  mongoUri.includes('cluster.mongodb.net');
+
+if (hasPlaceholderMongoUri) {
+  console.warn('⚠ MongoDB URI is not configured. Update server/.env MONGODB_URI with your real Atlas URI or a local URI (mongodb://127.0.0.1:27017/biddown).');
+} else {
+  mongoose.connect(mongoUri, {
+    serverSelectionTimeoutMS: 5000,
+  }).then(() => {
+    console.log('Connected to MongoDB');
+  }).catch(err => {
+    console.warn('⚠ MongoDB connection error (development mode continues):', err.message);
+  });
+}
+
+const requireDbConnection = (req, res, next) => {
+  // 1 = connected, 2 = connecting, 0 = disconnected, 3 = disconnecting
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      error: 'Database unavailable. Verify MONGODB_URI and Atlas network/DNS settings.',
+    });
+  }
+  next();
+};
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/jobs', jobRoutes);
-app.use('/api/bids', bidRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/payments', paymentRoutes);
+app.use('/api/auth', requireDbConnection, authRoutes);
+app.use('/api/jobs', requireDbConnection, jobRoutes);
+app.use('/api/bids', requireDbConnection, bidRoutes);
+app.use('/api/reviews', requireDbConnection, reviewRoutes);
+app.use('/api/analytics', requireDbConnection, analyticsRoutes);
+app.use('/api/payments', requireDbConnection, paymentRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
