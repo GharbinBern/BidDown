@@ -11,7 +11,8 @@ const router = express.Router();
 // Leave a review (auth required)
 router.post('/', authMiddleware, [
   body('job_id').notEmpty(),
-  body('seller_id').notEmpty(),
+  body('reviewee_id').optional().notEmpty(),
+  body('seller_id').optional().notEmpty(),
   body('rating').isInt({ min: 1, max: 5 }),
   body('comment').optional().isLength({ max: 2000 }),
 ], async (req, res, next) => {
@@ -21,7 +22,8 @@ router.post('/', authMiddleware, [
   }
 
   try {
-    const { job_id, seller_id, rating, comment, quality_rating, communication_rating, timeliness_rating } = req.body;
+    const { job_id, reviewee_id, seller_id, rating, comment, quality_rating, communication_rating, timeliness_rating } = req.body;
+    const targetRevieweeId = reviewee_id || seller_id;
 
     // Check job exists and is completed
     const job = await Job.findById(job_id);
@@ -33,22 +35,42 @@ router.post('/', authMiddleware, [
       return res.status(400).json({ error: 'Cannot review incomplete job' });
     }
 
-    // Check user is the buyer
-    if (job.owner_id.toString() !== req.userId) {
-      return res.status(403).json({ error: 'Only job owner can review' });
+    const winningBid = await Bid.findById(job.winning_bid_id);
+    if (!winningBid) {
+      return res.status(400).json({ error: 'Cannot review before a winning bid exists' });
+    }
+
+    const buyerId = job.owner_id.toString();
+    const sellerId = winningBid.seller_id.toString();
+    const reviewerId = req.userId;
+
+    if (reviewerId !== buyerId && reviewerId !== sellerId) {
+      return res.status(403).json({ error: 'Only job participants can review' });
+    }
+
+    if (!targetRevieweeId) {
+      return res.status(400).json({ error: 'reviewee_id is required' });
+    }
+
+    const targetId = targetRevieweeId.toString();
+    const expectedRevieweeId = reviewerId === buyerId ? sellerId : buyerId;
+    if (targetId !== expectedRevieweeId) {
+      return res.status(400).json({ error: 'You can only review the other participant in this job' });
     }
 
     // Check review doesn't already exist
-    const existingReview = await Review.findOne({ job_id });
+    const existingReview = await Review.findOne({ job_id, reviewer_id: reviewerId });
     if (existingReview) {
-      return res.status(400).json({ error: 'Review already exists for this job' });
+      return res.status(400).json({ error: 'You already reviewed this job' });
     }
 
     // Create review
     const review = new Review({
       job_id,
-      buyer_id: req.userId,
-      seller_id,
+      buyer_id: buyerId,
+      seller_id: sellerId,
+      reviewer_id: reviewerId,
+      reviewee_id: targetId,
       rating,
       comment,
       quality_rating,
@@ -58,11 +80,17 @@ router.post('/', authMiddleware, [
 
     await review.save();
 
-    // Update seller stats
-    const allReviews = await Review.find({ seller_id });
+    // Update stats for reviewed user
+    const allReviews = await Review.find({
+      $or: [
+        { reviewee_id: targetId },
+        // Legacy fallback (before reviewee_id existed)
+        { reviewee_id: { $exists: false }, seller_id: targetId },
+      ],
+    });
     const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
 
-    await User.findByIdAndUpdate(seller_id, {
+    await User.findByIdAndUpdate(targetId, {
       average_rating: avgRating,
       reviews_count: allReviews.length,
     });
@@ -76,7 +104,12 @@ router.post('/', authMiddleware, [
 // Get seller reviews
 router.get('/seller/:sellerId', async (req, res, next) => {
   try {
-    const reviews = await Review.find({ seller_id: req.params.sellerId })
+    const reviews = await Review.find({
+      $or: [
+        { reviewee_id: req.params.sellerId },
+        { reviewee_id: { $exists: false }, seller_id: req.params.sellerId },
+      ],
+    })
       .populate('buyer_id', 'name avatar')
       .sort({ createdAt: -1 });
 
@@ -103,16 +136,23 @@ router.get('/job/:jobId', authMiddleware, async (req, res, next) => {
       return res.status(404).json({ error: 'Job not found' });
     }
 
-    // Only owner or seller can view
     const bid = await Bid.findById(job.winning_bid_id);
-    if (job.owner_id.toString() !== req.userId && (!bid || bid.seller_id.toString() !== req.userId)) {
+    if (!bid) {
+      return res.status(404).json({ error: 'Winning bid not found' });
+    }
+
+    // Only owner or winning seller can view
+    if (job.owner_id.toString() !== req.userId && bid.seller_id.toString() !== req.userId) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    const review = await Review.findOne({ job_id: req.params.jobId })
-      .populate('buyer_id', 'name avatar');
+    const reviews = await Review.find({ job_id: req.params.jobId })
+      .populate('buyer_id', 'name avatar')
+      .populate('reviewer_id', 'name avatar')
+      .populate('reviewee_id', 'name avatar')
+      .sort({ createdAt: -1 });
 
-    res.json(review);
+    res.json(reviews);
   } catch (err) {
     next(err);
   }

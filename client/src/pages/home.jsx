@@ -1,9 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { BadgeCheck, DollarSign, FileText, Lock, Search, TrendingDown, Users, CheckCircle2 } from 'lucide-react'
-import { useAuthStore } from '../store'
 
 export default function HomePage() {
-  const { isAuthenticated } = useAuthStore()
   const navigate = useNavigate()
 
   return (
@@ -25,6 +23,7 @@ export default function HomePage() {
         </div>
       </div>
       <div className="main">
+        <section className="shell-panel">
         <div className="section-title">How <span>BidDown</span> Works</div>
         <div className="how-grid">
           {[
@@ -40,7 +39,9 @@ export default function HomePage() {
             </div>
           ))}
         </div>
-        <div className="section-title" style={{ marginTop: 40 }}>The <span>Economics</span> Behind It</div>
+        </section>
+        <section className="shell-panel">
+        <div className="section-title" style={{ marginTop: 8 }}>The <span>Economics</span> Behind It</div>
         <div className="how-grid">
           {[
             { num: "A", icon: TrendingDown, title: "Reverse Auction Theory", desc: "Unlike standard auctions, sellers bid down. Competition drives prices toward marginal cost — maximizing buyer surplus." },
@@ -55,6 +56,7 @@ export default function HomePage() {
             </div>
           ))}
         </div>
+        </section>
       </div>
     </div>
   )

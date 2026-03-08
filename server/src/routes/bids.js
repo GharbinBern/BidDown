@@ -70,7 +70,7 @@ router.post('/', authMiddleware, [
 router.get('/my-bids', authMiddleware, async (req, res, next) => {
   try {
     const bids = await Bid.find({ seller_id: req.userId })
-      .populate('job_id', 'title budget status deadline')
+      .populate('job_id', 'title budget status deadline escrow_released')
       .sort({ createdAt: -1 });
 
     res.json(bids);

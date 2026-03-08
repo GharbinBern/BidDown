@@ -1,11 +1,35 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Search, Star, X } from 'lucide-react'
-import { useAuthStore, useBidsStore, useJobsStore } from '../store'
+import CustomDropdown from '../components/CustomDropdown'
+import { useAuthStore, useBidsStore, useJobsStore, usePreferencesStore } from '../store'
 
 const CATEGORIES = ["All", "Design", "Development", "Marketing", "Writing", "Legal", "Consulting", "Other"]
 const REQUEST_CATEGORIES = CATEGORIES.slice(1)
+const REQUEST_CATEGORY_OPTIONS = REQUEST_CATEGORIES.map((category) => ({
+  value: category,
+  label: category,
+}))
+const SORT_OPTIONS = [
+  { value: 'endingSoon', label: 'Ending Soon' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'mostBids', label: 'Most Bids' },
+  { value: 'budgetHigh', label: 'Budget: High To Low' },
+  { value: 'budgetLow', label: 'Budget: Low To High' },
+]
+
+function formatRecordTime(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'N/A'
+  return date.toLocaleString([], {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
 function Timer({ hours }) {
   const safeHours = Math.max(0, Number(hours) || 0)
@@ -18,7 +42,7 @@ function Timer({ hours }) {
   return <span className={`timer ${isHoursUnit && safeHours <= 12 ? "low" : ""}`}><span className="timer-dot" />{label}</span>
 }
 
-function ListingModal({ listing, onClose, onBid, onAcceptBid, user, myBids, loadingDetails }) {
+function ListingModal({ listing, onClose, onBid, onAcceptBid, user, myBids }) {
   if (!listing) return null
   const [showBidForm, setShowBidForm] = useState(false)
   const [bidAmount, setBidAmount] = useState('')
@@ -35,6 +59,7 @@ function ListingModal({ listing, onClose, onBid, onAcceptBid, user, myBids, load
   const hasExistingBid = !!existingBid
   const canSubmitBid = isSeller && !isOwner && !hasExistingBid
   const canAcceptBid = isOwner && listing.status === 'open'
+  const existingBidStatus = existingBid?.status
   
   const sortedBids = [...(listing.bids || [])].sort((a, b) => a.amount - b.amount)
 
@@ -73,16 +98,12 @@ function ListingModal({ listing, onClose, onBid, onAcceptBid, user, myBids, load
         <div className="info-row"><span className="info-label">Category</span><span className="listing-category">{listing.category}</span></div>
         <div className="info-row"><span className="info-label">Budget Cap</span><span style={{ color: "var(--accent)", fontWeight: 700, fontFamily: "'Syne',sans-serif", fontSize: 18 }}>${listing.budget.toLocaleString()}</span></div>
         <div className="info-row"><span className="info-label">Time Remaining</span><Timer hours={listing.hoursLeft} /></div>
-        <div className="info-row"><span className="info-label">Total Bids</span><span>{listing.bids_count || 0} (sealed during bidding window)</span></div>
+        <div className="info-row"><span className="info-label">Total Bids</span><span>{listing.bids_count || 0}</span></div>
         <div style={{ margin: "16px 0", color: "var(--muted)", fontSize: 13, lineHeight: 1.7 }}>{listing.desc}</div>
-        <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, marginBottom: 12 }}>
+        <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, marginBottom: 12, textAlign: isOwner ? 'left' : 'center' }}>
           {isOwner ? "All Bids — Ranked Lowest First" : "Bids are sealed to non-owners"}
         </div>
-        {loadingDetails ? (
-          <div className="loading-panel" style={{ marginBottom: 12 }}>
-            <div className="loading-row"><span className="loading-dot" />Refreshing latest bid details...</div>
-          </div>
-        ) : isOwner ? (
+        {isOwner ? (
           <div className="bid-list">
             {sortedBids.map((b, i) => (
               <div key={b._id || i} className={`bid-item ${i === 0 ? "winner" : ""}`}>
@@ -116,11 +137,7 @@ function ListingModal({ listing, onClose, onBid, onAcceptBid, user, myBids, load
               </div>
             )}
           </div>
-        ) : (
-          <div className="card" style={{ marginBottom: 12, color: 'var(--muted)', fontSize: 13 }}>
-            You can see bid count only. Bid details are visible only to the request owner after closing.
-          </div>
-        )}
+        ) : null}
         {showBidForm && canSubmitBid && (
           <div className="card" style={{ marginTop: 16, marginBottom: 12 }}>
             <div className="form-group" style={{ marginBottom: 12 }}>
@@ -155,8 +172,18 @@ function ListingModal({ listing, onClose, onBid, onAcceptBid, user, myBids, load
             </div>
             <div className="info-row"><span className="info-label">Amount</span><span style={{ color: 'var(--accent)', fontWeight: 700 }}>${Number(existingBid.amount).toLocaleString()}</span></div>
             <div className="info-row"><span className="info-label">Status</span><span className={`status-pill ${existingBid.status === 'accepted' ? 'status-closed' : existingBid.status === 'rejected' ? 'status-pending' : 'status-open'}`}>{existingBid.status}</span></div>
-            <div className="info-row"><span className="info-label">Submitted</span><span>{new Date(existingBid.createdAt).toLocaleString()}</span></div>
+            <div className="info-row"><span className="info-label">Submitted</span><span>{formatRecordTime(existingBid.createdAt)}</span></div>
             <div style={{ marginTop: 10, color: 'var(--muted)', fontSize: 13 }}>{existingBid.note || 'No note was included with your bid.'}</div>
+            {existingBidStatus === 'accepted' && (
+              <div style={{ marginTop: 10, color: 'var(--green)', fontSize: 12 }}>
+                You won this request. Next step: coordinate delivery details with the buyer.
+              </div>
+            )}
+            {existingBidStatus === 'rejected' && (
+              <div style={{ marginTop: 10, color: 'var(--accent2)', fontSize: 12 }}>
+                Another seller was selected for this request.
+              </div>
+            )}
           </div>
         )}
 
@@ -187,10 +214,12 @@ export default function MarketplacePage() {
   const { user } = useAuthStore()
   const { jobs, loading, fetchJobs, selectedJob, fetchJob, closeJob, createJob } = useJobsStore()
   const { submitBid, fetchMyBids, myBids } = useBidsStore()
+  const requestOrderMode = usePreferencesStore((state) => state.requestOrderMode)
   const [selectedJobId, setSelectedJobId] = useState(null)
-  const [loadingDetails, setLoadingDetails] = useState(false)
   const [catFilter, setCatFilter] = useState("All")
   const [search, setSearch] = useState("")
+  const [sortBy, setSortBy] = useState('endingSoon')
+  const bidStatusCacheRef = useRef({})
   const [showPostForm, setShowPostForm] = useState(false)
   const [posting, setPosting] = useState(false)
   const [newRequest, setNewRequest] = useState({
@@ -227,6 +256,32 @@ export default function MarketplacePage() {
     }
   }, [user, fetchMyBids])
 
+  useEffect(() => {
+    if (!myBids.length) return
+
+    const previous = bidStatusCacheRef.current
+    const next = {}
+
+    myBids.forEach((bid) => {
+      const key = bid._id
+      const prevStatus = previous[key]
+      const currentStatus = bid.status
+      next[key] = currentStatus
+
+      if (prevStatus && prevStatus !== currentStatus) {
+        const title = bid.job_id?.title || 'a request'
+        if (currentStatus === 'accepted') {
+          toast.success(`Your bid was accepted for ${title}.`)
+        }
+        if (currentStatus === 'rejected') {
+          toast.error(`Your bid was not selected for ${title}.`)
+        }
+      }
+    })
+
+    bidStatusCacheRef.current = next
+  }, [myBids])
+
   const listings = useMemo(() => jobs.map((job) => {
     const deadline = new Date(job.deadline)
     const hoursLeft = Math.max(0, Math.ceil((deadline.getTime() - Date.now()) / (1000 * 60 * 60)))
@@ -238,10 +293,47 @@ export default function MarketplacePage() {
     }
   }), [jobs])
 
-  const filtered = listings.filter(l =>
-    (catFilter === "All" || l.category === catFilter) &&
-    (l.title.toLowerCase().includes(search.toLowerCase()) || l.desc.toLowerCase().includes(search.toLowerCase()))
-  )
+  const filtered = useMemo(() => {
+    const userId = String(user?._id || user?.id || '')
+
+    const searched = listings.filter((l) =>
+      (catFilter === "All" || l.category === catFilter) &&
+      (l.title.toLowerCase().includes(search.toLowerCase()) || l.desc.toLowerCase().includes(search.toLowerCase()))
+    )
+
+    const withMeta = searched.map((listing) => {
+      const ownerId = String(listing.owner_id?._id || listing.owner_id || '')
+      const isMine = userId && ownerId === userId
+      const createdAtMs = listing.createdAt ? new Date(listing.createdAt).getTime() : 0
+      const isFresh = createdAtMs > 0 && Date.now() - createdAtMs <= 24 * 60 * 60 * 1000
+      return {
+        ...listing,
+        isMine,
+        isFresh,
+        hasHighActivity: Number(listing.bids_count || 0) >= 5,
+      }
+    })
+
+    const sorted = [...withMeta].sort((a, b) => {
+      if (requestOrderMode === 'mine-first' && a.isMine !== b.isMine) return a.isMine ? -1 : 1
+
+      switch (sortBy) {
+        case 'budgetHigh':
+          return Number(b.budget || 0) - Number(a.budget || 0)
+        case 'budgetLow':
+          return Number(a.budget || 0) - Number(b.budget || 0)
+        case 'mostBids':
+          return Number(b.bids_count || 0) - Number(a.bids_count || 0)
+        case 'newest':
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        case 'endingSoon':
+        default:
+          return Number(a.hoursLeft || 0) - Number(b.hoursLeft || 0)
+      }
+    })
+
+    return sorted
+  }, [listings, catFilter, search, sortBy, requestOrderMode, user])
 
   const selectedListing = selectedJob && selectedJobId === selectedJob._id
     ? {
@@ -251,15 +343,21 @@ export default function MarketplacePage() {
       }
     : filtered.find((l) => l._id === selectedJobId)
 
+  const myBidByJobId = useMemo(() => {
+    const map = {}
+    myBids.forEach((bid) => {
+      const jobId = bid.job_id?._id || bid.job_id
+      if (jobId) map[String(jobId)] = bid
+    })
+    return map
+  }, [myBids])
+
   const openListing = async (jobId) => {
     setSelectedJobId(jobId)
-    setLoadingDetails(true)
     try {
       await fetchJob(jobId)
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to load request details')
-    } finally {
-      setLoadingDetails(false)
     }
   }
 
@@ -346,23 +444,38 @@ export default function MarketplacePage() {
           </button>
         )}
       </div>
-      <div className="filters">
-        {CATEGORIES.map(c => <button type="button" key={c} className={`filter-pill ${catFilter === c ? "active" : ""}`} onClick={() => setCatFilter(c)}>{c}</button>)}
-        <div className="filter-spacer" />
-        <input className="search-box" placeholder="Search requests..." value={search} onChange={e => setSearch(e.target.value)} />
-      </div>
-      {loading && (
-        <div className="loading-panel">
-          <div className="loading-row"><span className="loading-dot" />Fetching open requests...</div>
+      <section className="shell-panel">
+        <div className="filters">
+          {CATEGORIES.map(c => <button type="button" key={c} className={`filter-pill ${catFilter === c ? "active" : ""}`} onClick={() => setCatFilter(c)}>{c}</button>)}
+          <div className="filter-spacer" />
+          <input className="search-box" placeholder="Search requests..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-      )}
+        <div className="market-toolbar">
+          <label className="market-toolbar-label">Sort By</label>
+          <CustomDropdown
+            options={SORT_OPTIONS}
+            value={sortBy}
+            onChange={setSortBy}
+            className="sort-dropdown"
+            buttonClassName="sort-trigger"
+            menuClassName="sort-menu"
+            optionClassName="sort-option"
+            caretClassName="sort-caret"
+            placeholder="Sort"
+          />
+        </div>
+      </section>
+      <section className="shell-panel" key={`${catFilter}-${search}-${sortBy}-${requestOrderMode}`}>
       <div className="listings-grid">
-        {filtered.map(l => {
-          const isMyListing = String(l.owner_id?._id || l.owner_id) === String(user?._id || user?.id)
+        {filtered.map((l, idx) => {
+          const isMyListing = l.isMine
+          const myBid = myBidByJobId[String(l._id)]
+          const myBidStatus = myBid?.status
           return (
           <div
             key={l._id}
             className={`listing-card ${l.urgent ? "urgent" : ""}`}
+            style={{ animationDelay: `${Math.min(idx, 8) * 55}ms` }}
             onClick={() => openListing(l._id)}
           >
             <div className="listing-header">
@@ -372,8 +485,16 @@ export default function MarketplacePage() {
                 <span className="listing-bids"><strong>{l.bids_count || 0}</strong> bids</span>
               </div>
             </div>
+            <div className="listing-signals">
+              {l.urgent && <span className="signal-pill danger">Ending Soon</span>}
+              {l.hasHighActivity && <span className="signal-pill">High Activity</span>}
+              {l.isFresh && <span className="signal-pill success">New</span>}
+              {myBidStatus === 'pending' && <span className="signal-pill">Your Bid Pending</span>}
+              {myBidStatus === 'accepted' && <span className="signal-pill success">You Won</span>}
+              {myBidStatus === 'rejected' && <span className="signal-pill danger">Not Selected</span>}
+            </div>
             <div className="listing-title">{l.title}</div>
-            <div className="listing-desc">{l.desc.substring(0, 100)}...</div>
+            <div className="listing-desc">{l.desc.length > 100 ? `${l.desc.substring(0, 100)}...` : l.desc}</div>
             <div className="listing-footer">
               <div>
                 <div className="budget-label">Budget Cap</div>
@@ -384,6 +505,7 @@ export default function MarketplacePage() {
           </div>
         )})}
       </div>
+      </section>
       {filtered.length === 0 && <div className="empty"><div className="empty-icon"><Search size={44} /></div><h3>No requests found</h3><p>Try adjusting your filters or post a new request.</p></div>}
 
       {showPostForm && (
@@ -419,15 +541,17 @@ export default function MarketplacePage() {
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Category</label>
-                <select
-                  className="form-select"
+                <CustomDropdown
+                  options={REQUEST_CATEGORY_OPTIONS}
                   value={newRequest.category}
-                  onChange={(e) => setNewRequest((prev) => ({ ...prev, category: e.target.value }))}
-                >
-                  {REQUEST_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
+                  onChange={(category) => setNewRequest((prev) => ({ ...prev, category }))}
+                  className="form-dropdown"
+                  buttonClassName="form-dropdown-trigger"
+                  menuClassName="form-dropdown-menu"
+                  optionClassName="form-dropdown-option"
+                  caretClassName="form-dropdown-caret"
+                  placeholder="Select category"
+                />
               </div>
               <div className="form-group">
                 <label className="form-label">Budget (USD)</label>
@@ -469,7 +593,6 @@ export default function MarketplacePage() {
         listing={selectedListing}
         user={user}
         myBids={myBids}
-        loadingDetails={loadingDetails}
         onClose={() => setSelectedJobId(null)}
         onBid={handleBidSubmit}
         onAcceptBid={handleAcceptBid}
