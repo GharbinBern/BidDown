@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
-import { useAnalyticsStore } from '../store'
+import { useEffect, useMemo, useState } from 'react'
+import toast from 'react-hot-toast'
+import { api } from '../api'
 
 function BarChart({ data, label }) {
-  const max = Math.max(...data.map(d => d.val))
+  const max = Math.max(...data.map(d => d.val), 1)
   return (
     <div className="chart-bar-container">
       <div className="chart-title">{label}</div>
@@ -20,39 +21,91 @@ function BarChart({ data, label }) {
 }
 
 export default function AnalyticsPage() {
-  const { marketStats, fetchMarketAnalytics, loading } = useAnalyticsStore()
+  const [loading, setLoading] = useState(true)
+  const [marketStats, setMarketStats] = useState(null)
+  const [categoryStats, setCategoryStats] = useState([])
+  const [bidStats, setBidStats] = useState(null)
 
   useEffect(() => {
-    fetchMarketAnalytics()
+    const loadAnalytics = async () => {
+      setLoading(true)
+      try {
+        const [marketRes, categoriesRes, bidsRes] = await Promise.all([
+          api.getMarketAnalytics(),
+          api.getCategoryAnalytics(),
+          api.getBidAnalytics(),
+        ])
+        setMarketStats(marketRes.data)
+        setCategoryStats(categoriesRes.data || [])
+        setBidStats(bidsRes.data || null)
+      } catch (error) {
+        toast.error(error.response?.data?.error || 'Failed to load analytics')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadAnalytics()
   }, [])
+
+  const avgBidsPerRequest = Number(bidStats?.stats?.avgBidsPerJob || 0)
+  const avgSavingsPercent = Number(marketStats?.savings?.avgSavingsPercent || 0)
+  const totalJobs = Number(marketStats?.jobs?.total || 0)
+  const closedOrCompleted = Number(marketStats?.jobs?.closed || 0) + Number(marketStats?.jobs?.completed || 0)
+  const closureRate = totalJobs > 0 ? (closedOrCompleted / totalJobs) * 100 : 0
+
+  const bidsByCategory = useMemo(
+    () => categoryStats.map((c) => ({ label: c.category.slice(0, 7), val: Number(c.jobCount || 0) })),
+    [categoryStats]
+  )
+
+  const savingsByCategory = useMemo(
+    () => categoryStats.map((c) => ({ label: c.category.slice(0, 7), val: Number(c.avgSavingsPercent || 0) })),
+    [categoryStats]
+  )
+
+  const bidDistribution = useMemo(() => {
+    const labels = ['1-3', '4-6', '7+']
+    return labels.map((label) => ({
+      label,
+      val: Number((bidStats?.distribution || []).find((d) => d._id === label)?.count || 0),
+    }))
+  }, [bidStats])
+
+  const jobsByStatus = useMemo(() => ([
+    { label: 'Open', val: Number(marketStats?.jobs?.open || 0) },
+    { label: 'Closed', val: Number(marketStats?.jobs?.closed || 0) },
+    { label: 'Done', val: Number(marketStats?.jobs?.completed || 0) },
+  ]), [marketStats])
 
   return (
     <div className="main">
       <div className="section-title">Market <span>Analytics</span></div>
+      {loading && <div className="card" style={{ marginBottom: 16, color: 'var(--muted)', fontSize: 13 }}>Loading analytics...</div>}
       <div className="dashboard-grid" style={{ marginBottom: 24 }}>
-        <div className="dash-card"><div className="dash-card-label">Avg Bids per Request</div><div className="dash-card-value accent">6.7</div></div>
-        <div className="dash-card"><div className="dash-card-label">Avg Price Drop</div><div className="dash-card-value green">28%</div><div className="dash-card-sub">below buyer budget cap</div></div>
-        <div className="dash-card"><div className="dash-card-label">Market Efficiency</div><div className="dash-card-value green">High</div><div className="dash-card-sub">Nash equilibrium reached</div></div>
-        <div className="dash-card"><div className="dash-card-label">Info Asymmetry Index</div><div className="dash-card-value accent">0.14</div><div className="dash-card-sub">low — lemons problem mitigated</div></div>
+        <div className="dash-card"><div className="dash-card-label">Avg Bids per Request</div><div className="dash-card-value accent">{avgBidsPerRequest.toFixed(1)}</div></div>
+        <div className="dash-card"><div className="dash-card-label">Avg Price Drop</div><div className="dash-card-value green">{avgSavingsPercent.toFixed(1)}%</div><div className="dash-card-sub">below buyer budget cap</div></div>
+        <div className="dash-card"><div className="dash-card-label">Closed/Completed Jobs</div><div className="dash-card-value green">{closedOrCompleted}</div><div className="dash-card-sub">of {totalJobs} total jobs</div></div>
+        <div className="dash-card"><div className="dash-card-label">Closure Rate</div><div className="dash-card-value accent">{closureRate.toFixed(1)}%</div><div className="dash-card-sub">jobs resolved from marketplace</div></div>
       </div>
       <div className="analytics-grid">
-        <BarChart label="Bids by Category" data={[{ label: "Design", val: 82 }, { label: "Dev", val: 134 }, { label: "Mktg", val: 61 }, { label: "Legal", val: 28 }, { label: "Write", val: 74 }, { label: "Consult", val: 43 }]} />
-        <BarChart label="Avg Savings by Category (%)" data={[{ label: "Design", val: 24 }, { label: "Dev", val: 31 }, { label: "Mktg", val: 22 }, { label: "Legal", val: 18 }, { label: "Write", val: 27 }, { label: "Consult", val: 35 }]} />
-        <BarChart label="Requests Posted per Day (This Week)" data={[{ label: "Mon", val: 38 }, { label: "Tue", val: 52 }, { label: "Wed", val: 47 }, { label: "Thu", val: 61 }, { label: "Fri", val: 44 }, { label: "Sat", val: 29 }, { label: "Sun", val: 21 }]} />
-        <BarChart label="Seller Rating Distribution" data={[{ label: "5.0★", val: 420 }, { label: "4.8★", val: 680 }, { label: "4.6★", val: 540 }, { label: "4.4★", val: 310 }, { label: "4.2★", val: 140 }, { label: "<4★", val: 60 }]} />
+        <BarChart label="Jobs by Category" data={bidsByCategory} />
+        <BarChart label="Avg Savings by Category (%)" data={savingsByCategory} />
+        <BarChart label="Bid Distribution (Jobs)" data={bidDistribution} />
+        <BarChart label="Jobs by Status" data={jobsByStatus} />
       </div>
       <div className="chart-bar-container" style={{ marginTop: 16 }}>
-        <div className="chart-title">RCT Result: BidDown vs. Posted-Price Market — Average Transaction Price</div>
+        <div className="chart-title">Marketplace Totals</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 16 }}>
           <div>
-            <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Control Group (Posted Price)</div>
-            <div style={{ fontSize: 36, fontFamily: "'Syne',sans-serif", fontWeight: 800 }}>$1,840</div>
-            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 6 }}>avg transaction · n=200</div>
+            <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Total Posted Budget</div>
+            <div style={{ fontSize: 36, fontFamily: "'Syne',sans-serif", fontWeight: 800 }}>${Number(marketStats?.savings?.totalBudget || 0).toLocaleString()}</div>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 6 }}>closed/completed requests</div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Treatment Group (BidDown)</div>
-            <div style={{ fontSize: 36, fontFamily: "'Syne',sans-serif", fontWeight: 800, color: "var(--green)" }}>$1,324</div>
-            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 6 }}>28% reduction · p &lt; 0.01 ✓ statistically significant</div>
+            <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Total Winning Bid Spend</div>
+            <div style={{ fontSize: 36, fontFamily: "'Syne',sans-serif", fontWeight: 800, color: "var(--green)" }}>${Number(marketStats?.savings?.totalSpent || 0).toLocaleString()}</div>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 6 }}>Savings: ${Number(marketStats?.savings?.totalSavings || 0).toLocaleString()}</div>
           </div>
         </div>
       </div>

@@ -1,30 +1,75 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuthStore } from '../store'
+import toast from 'react-hot-toast'
+import { api } from '../api'
 
-const myBids = [
-  { listing: "React Dashboard Development", amount: 1800, status: "winning", time: "2h ago" },
-  { listing: "Logo & Brand Identity", amount: 620, status: "winning", time: "5h ago" },
-  { listing: "SEO Content Strategy", amount: 1200, status: "outbid", time: "1d ago" },
-]
-
-const myListings = [
-  { title: "React Dashboard Development", category: "Development", budget: 2200, bids: 12, status: "Open" },
-  { title: "Logo & Brand Identity Design", category: "Design", budget: 800, bids: 7, status: "Open" },
-  { title: "SEO Content Strategy (3 months)", category: "Marketing", budget: 1500, bids: 5, status: "Open" },
-]
+function mapStatusPill(status) {
+  if (status === 'accepted' || status === 'closed' || status === 'completed') return 'status-closed'
+  if (status === 'rejected' || status === 'withdrawn' || status === 'cancelled') return 'status-pending'
+  return 'status-open'
+}
 
 export default function DashboardPage() {
   const { user } = useAuthStore()
   const [dashTab, setDashTab] = useState("requests")
+  const [jobs, setJobs] = useState([])
+  const [myBids, setMyBids] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      setLoading(true)
+      try {
+        const [openRes, closedRes, completedRes, bidsRes] = await Promise.all([
+          api.getJobs({ status: 'open', limit: 100 }),
+          api.getJobs({ status: 'closed', limit: 100 }),
+          api.getJobs({ status: 'completed', limit: 100 }),
+          api.getMyBids(),
+        ])
+
+        const combinedJobs = [
+          ...openRes.data.jobs,
+          ...closedRes.data.jobs,
+          ...completedRes.data.jobs,
+        ]
+
+        setJobs(combinedJobs)
+        setMyBids(bidsRes.data)
+      } catch (error) {
+        toast.error(error.response?.data?.error || 'Failed to load dashboard data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadDashboard()
+  }, [])
+
+  const userId = user?._id || user?.id
+  const myListings = useMemo(
+    () => jobs.filter((job) => String(job.owner_id?._id || job.owner_id) === String(userId)),
+    [jobs, userId]
+  )
+
+  const activeRequests = myListings.filter((job) => job.status === 'open').length
+  const receivingBids = myListings.filter((job) => (job.bids_count || 0) > 0 && job.status === 'open').length
+  const totalSaved = myListings.reduce((sum, job) => {
+    if (!job.winning_bid_id?.amount) return sum
+    return sum + Math.max(0, job.budget - job.winning_bid_id.amount)
+  }, 0)
+  const avgReduction = myListings
+    .filter((job) => job.winning_bid_id?.amount)
+    .reduce((acc, job, _, arr) => acc + (((job.budget - job.winning_bid_id.amount) / job.budget) * 100) / arr.length, 0)
 
   return (
     <div className="main">
       <div className="section-title">Your <span>Dashboard</span></div>
+      {loading && <div className="card" style={{ marginBottom: 16, color: 'var(--muted)', fontSize: 13 }}>Loading dashboard...</div>}
       <div className="dashboard-grid">
-        <div className="dash-card"><div className="dash-card-label">Active Requests</div><div className="dash-card-value accent">3</div><div className="dash-card-sub">2 receiving bids</div></div>
-        <div className="dash-card"><div className="dash-card-label">Total Saved</div><div className="dash-card-value green">$1,840</div><div className="dash-card-sub">vs. posted-price market</div></div>
-        <div className="dash-card"><div className="dash-card-label">Bids Submitted</div><div className="dash-card-value accent">3</div><div className="dash-card-sub">2 currently winning</div></div>
-        <div className="dash-card"><div className="dash-card-label">Avg Bid Reduction</div><div className="dash-card-value green">23%</div><div className="dash-card-sub">below your budget cap</div></div>
+        <div className="dash-card"><div className="dash-card-label">Active Requests</div><div className="dash-card-value accent">{activeRequests}</div><div className="dash-card-sub">{receivingBids} receiving bids</div></div>
+        <div className="dash-card"><div className="dash-card-label">Total Saved</div><div className="dash-card-value green">${totalSaved.toLocaleString()}</div><div className="dash-card-sub">vs. budget cap on accepted bids</div></div>
+        <div className="dash-card"><div className="dash-card-label">Bids Submitted</div><div className="dash-card-value accent">{myBids.length}</div><div className="dash-card-sub">across active requests</div></div>
+        <div className="dash-card"><div className="dash-card-label">Avg Bid Reduction</div><div className="dash-card-value green">{avgReduction.toFixed(1)}%</div><div className="dash-card-sub">below your budget cap</div></div>
       </div>
       <div className="sub-tabs">
         {["requests", "my bids", "transactions"].map(t => (
@@ -38,15 +83,20 @@ export default function DashboardPage() {
           <thead><tr><th>Request</th><th>Category</th><th>Budget</th><th>Bids</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>
             {myListings.map((l, i) => (
-              <tr key={i}>
+              <tr key={l._id || i}>
                 <td style={{ fontFamily: "'Syne',sans-serif", fontWeight: 600 }}>{l.title}</td>
                 <td><span className="listing-category">{l.category}</span></td>
                 <td style={{ color: "var(--accent)", fontWeight: 700 }}>${l.budget.toLocaleString()}</td>
-                <td>{l.bids}</td>
-                <td><span className={`status-pill status-open`}>{l.status}</span></td>
-                <td><button className="btn btn-ghost btn-sm">View Bids</button></td>
+                <td>{l.bids_count || 0}</td>
+                <td><span className={`status-pill ${mapStatusPill(l.status)}`}>{l.status}</span></td>
+                <td><button type="button" className="btn btn-ghost btn-sm" disabled>Manage</button></td>
               </tr>
             ))}
+            {myListings.length === 0 && (
+              <tr>
+                <td colSpan="6" style={{ color: 'var(--muted)' }}>No requests posted yet.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       )}
@@ -55,17 +105,28 @@ export default function DashboardPage() {
           <thead><tr><th>Request</th><th>Your Bid</th><th>Status</th><th>Submitted</th></tr></thead>
           <tbody>
             {myBids.map((b, i) => (
-              <tr key={i}>
-                <td style={{ fontFamily: "'Syne',sans-serif", fontWeight: 600 }}>{b.listing}</td>
+              <tr key={b._id || i}>
+                <td style={{ fontFamily: "'Syne',sans-serif", fontWeight: 600 }}>{b.job_id?.title || 'Request'}</td>
                 <td style={{ color: "var(--accent)", fontWeight: 700 }}>${b.amount.toLocaleString()}</td>
-                <td><span className={`status-pill ${b.status === "winning" ? "status-closed" : "status-pending"}`}>{b.status}</span></td>
-                <td style={{ color: "var(--muted)" }}>{b.time}</td>
+                <td><span className={`status-pill ${mapStatusPill(b.status)}`}>{b.status}</span></td>
+                <td style={{ color: "var(--muted)" }}>{new Date(b.createdAt).toLocaleString()}</td>
               </tr>
             ))}
+            {myBids.length === 0 && (
+              <tr>
+                <td colSpan="4" style={{ color: 'var(--muted)' }}>No bids submitted yet.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       )}
-      {dashTab === "transactions" && <div className="empty"><div className="empty-icon">💳</div><h3>No completed transactions yet</h3><p>Accept a bid to start a transaction.</p></div>}
+      {dashTab === "transactions" && (
+        <div className="empty">
+          <div className="empty-icon">💳</div>
+          <h3>{myListings.filter((j) => j.status === 'closed' || j.status === 'completed').length} closed/completed requests</h3>
+          <p>Transactions and escrow records will appear here as payment flow is connected.</p>
+        </div>
+      )}
     </div>
   )
 }
