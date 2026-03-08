@@ -27,7 +27,7 @@ cp .env.example .env
 
 Edit `.env` with your credentials:
 ```
-MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/biddown
+MONGODB_URI=mongodb+srv://<cluster-host>/biddown
 JWT_SECRET=your-secret-key-min-32-chars
 STRIPE_SECRET_KEY=sk_test_xxxxx
 STRIPE_PUBLIC_KEY=pk_test_xxxxx
