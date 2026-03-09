@@ -323,7 +323,6 @@ export default function MarketplacePage() {
         ...listing,
         isMine,
         isFresh,
-        hasHighActivity: Number(listing.bids_count || 0) >= 5,
       }
     })
 
@@ -491,10 +490,11 @@ export default function MarketplacePage() {
               const isMyListing = l.isMine
               const myBid = myBidByJobId[String(l._id)]
               const myBidStatus = myBid?.status
+              const hasPlacedBid = myBidStatus === 'pending'
               return (
                 <div
                   key={l._id}
-                  className={`listing-card ${l.urgent ? "urgent" : ""}`}
+                  className={`listing-card ${l.urgent ? "urgent" : ""} ${hasPlacedBid ? 'has-my-bid' : ''}`}
                   style={{ animationDelay: `${Math.min(idx, 8) * 55}ms` }}
                   onClick={() => openListing(l._id)}
                 >
@@ -507,9 +507,7 @@ export default function MarketplacePage() {
                   </div>
                   <div className="listing-signals">
                     {l.urgent && <span className="signal-pill danger">Ending Soon</span>}
-                    {l.hasHighActivity && <span className="signal-pill">High Activity</span>}
                     {l.isFresh && <span className="signal-pill success">New</span>}
-                    {myBidStatus === 'pending' && <span className="signal-pill">Your Bid Pending</span>}
                     {myBidStatus === 'accepted' && <span className="signal-pill success">You Won</span>}
                     {myBidStatus === 'rejected' && <span className="signal-pill danger">Not Selected</span>}
                   </div>
@@ -529,6 +527,8 @@ export default function MarketplacePage() {
         ) : (
           <div className="mturk-list">
             {filtered.map((listing) => {
+              const myBid = myBidByJobId[String(listing._id)]
+              const hasPlacedBid = myBid?.status === 'pending'
               const statusClass = listing.isMine
                 ? 'status-open'
                 : listing.status === 'closed' || listing.status === 'completed'
@@ -538,12 +538,13 @@ export default function MarketplacePage() {
               const timeLabel = safeHoursLeft === 0 ? 'Ended' : `${safeHoursLeft}h left`
               const bidsCount = Number(listing.bids_count || 0)
               const statusLabel = String(listing.status || 'open')
+              const showStatusPill = statusLabel !== 'open'
               const lowestBid = Array.isArray(listing.bids) && listing.bids.length
                 ? Math.min(...listing.bids.map((bid) => Number(bid.amount || Infinity)))
                 : null
 
               return (
-                <article key={listing._id} className="mturk-row" onClick={() => openListing(listing._id)}>
+                <article key={listing._id} className={`mturk-row ${hasPlacedBid ? 'has-my-bid' : ''}`} onClick={() => openListing(listing._id)}>
                   <div className="mturk-main">
                     <div className="mturk-category">{listing.category}</div>
                     <h3 className="mturk-title">{listing.title}</h3>
@@ -557,7 +558,7 @@ export default function MarketplacePage() {
                         <Tag size={13} />
                         {`${bidsCount} bids`}
                       </span>
-                      <span className={`status-pill ${statusClass}`}>{statusLabel}</span>
+                      {showStatusPill && <span className={`status-pill ${statusClass}`}>{statusLabel}</span>}
                     </div>
                   </div>
 
