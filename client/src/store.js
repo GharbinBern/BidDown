@@ -136,11 +136,13 @@ export const useAnalyticsStore = create((set) => ({
 const DEFAULT_PREFERENCES = {
   theme: localStorage.getItem('pref_theme') || 'light',
   requestOrderMode: localStorage.getItem('pref_request_order') || 'mine-first',
+  marketViewMode: localStorage.getItem('pref_market_view') || 'list',
 }
 
 export const usePreferencesStore = create((set) => ({
   theme: DEFAULT_PREFERENCES.theme,
   requestOrderMode: DEFAULT_PREFERENCES.requestOrderMode,
+  marketViewMode: DEFAULT_PREFERENCES.marketViewMode,
 
   setTheme: (theme) => {
     localStorage.setItem('pref_theme', theme)
@@ -150,6 +152,11 @@ export const usePreferencesStore = create((set) => ({
   setRequestOrderMode: (requestOrderMode) => {
     localStorage.setItem('pref_request_order', requestOrderMode)
     set({ requestOrderMode })
+  },
+
+  setMarketViewMode: (marketViewMode) => {
+    localStorage.setItem('pref_market_view', marketViewMode)
+    set({ marketViewMode })
   },
 }))
 

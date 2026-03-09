@@ -8,7 +8,14 @@ import { api } from '../api'
 export default function SettingsPage() {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
-  const { theme, requestOrderMode, setTheme, setRequestOrderMode } = usePreferencesStore()
+  const {
+    theme,
+    requestOrderMode,
+    marketViewMode,
+    setTheme,
+    setRequestOrderMode,
+    setMarketViewMode,
+  } = usePreferencesStore()
   const [summary, setSummary] = useState({
     activeRequests: 0,
     closedOrCompleted: 0,
@@ -155,6 +162,29 @@ export default function SettingsPage() {
               >
                 <span className="settings-choice-title">Mixed Order</span>
                 <span className="settings-choice-desc">Treat all requests equally and sort only by selected criteria.</span>
+              </button>
+            </div>
+          </section>
+
+          <section className="shell-panel settings-panel" style={{ marginBottom: 0 }}>
+            <div className="settings-section-title">
+              <SlidersHorizontal size={16} /> Marketplace View
+            </div>
+            <p className="settings-help">Choose the default marketplace layout when you open requests.</p>
+            <div className="settings-row">
+              <button
+                type="button"
+                className={`settings-toggle ${marketViewMode === 'card' ? 'active' : ''}`}
+                onClick={() => setMarketViewMode('card')}
+              >
+                Card
+              </button>
+              <button
+                type="button"
+                className={`settings-toggle ${marketViewMode === 'list' ? 'active' : ''}`}
+                onClick={() => setMarketViewMode('list')}
+              >
+                List
               </button>
             </div>
           </section>

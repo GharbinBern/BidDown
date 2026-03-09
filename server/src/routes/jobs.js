@@ -7,6 +7,14 @@ import { authMiddleware, optionalAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
+const autoCloseExpiredOpenJobs = async () => {
+  const now = new Date();
+  await Job.updateMany(
+    { status: 'open', deadline: { $lt: now } },
+    { $set: { status: 'closed', updatedAt: now } }
+  );
+};
+
 // Create job (auth required)
 router.post('/', authMiddleware, [
   body('title').notEmpty(),
@@ -49,9 +57,14 @@ router.get('/', optionalAuth, [
   query('limit').optional().isInt({ min: 1, max: 100 }),
 ], async (req, res, next) => {
   try {
+    await autoCloseExpiredOpenJobs();
+
     const { category, status, page = 1, limit = 20, search } = req.query;
 
     const filter = { status: status || 'open' };
+    if (filter.status === 'open') {
+      filter.deadline = { $gte: new Date() };
+    }
     if (category) filter.category = category;
     if (search) {
       filter.$or = [
@@ -88,6 +101,8 @@ router.get('/', optionalAuth, [
 // Get job details
 router.get('/:id', optionalAuth, async (req, res, next) => {
   try {
+    await autoCloseExpiredOpenJobs();
+
     const job = await Job.findById(req.params.id)
       .populate('owner_id', 'name avatar average_rating')
       .populate({

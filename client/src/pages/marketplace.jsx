@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Search, Star, X } from 'lucide-react'
+import { Clock3, Search, Star, Tag, X } from 'lucide-react'
 import CustomDropdown from '../components/CustomDropdown'
 import { useAuthStore, useBidsStore, useJobsStore, usePreferencesStore } from '../store'
 
 const CATEGORIES = ["All", "Design", "Development", "Marketing", "Writing", "Legal", "Consulting", "Other"]
+const FILTER_OPTIONS = CATEGORIES.map((category) => ({
+  value: category,
+  label: category,
+}))
 const REQUEST_CATEGORIES = CATEGORIES.slice(1)
 const REQUEST_CATEGORY_OPTIONS = REQUEST_CATEGORIES.map((category) => ({
   value: category,
@@ -33,6 +37,9 @@ function formatRecordTime(value) {
 
 function Timer({ hours }) {
   const safeHours = Math.max(0, Number(hours) || 0)
+  if (safeHours === 0) {
+    return <span className="timer low"><span className="timer-dot" />Ended</span>
+  }
   const isHoursUnit = safeHours < 24
   const daysLeft = Math.ceil(safeHours / 24)
   const label = isHoursUnit
@@ -215,6 +222,8 @@ export default function MarketplacePage() {
   const { jobs, loading, fetchJobs, selectedJob, fetchJob, closeJob, createJob } = useJobsStore()
   const { submitBid, fetchMyBids, myBids } = useBidsStore()
   const requestOrderMode = usePreferencesStore((state) => state.requestOrderMode)
+  const marketViewMode = usePreferencesStore((state) => state.marketViewMode)
+  const setMarketViewMode = usePreferencesStore((state) => state.setMarketViewMode)
   const [selectedJobId, setSelectedJobId] = useState(null)
   const [catFilter, setCatFilter] = useState("All")
   const [search, setSearch] = useState("")
@@ -284,10 +293,13 @@ export default function MarketplacePage() {
 
   const listings = useMemo(() => jobs.map((job) => {
     const deadline = new Date(job.deadline)
-    const hoursLeft = Math.max(0, Math.ceil((deadline.getTime() - Date.now()) / (1000 * 60 * 60)))
+    const deadlineMs = deadline.getTime()
+    const hoursLeft = Math.max(0, Math.ceil((deadlineMs - Date.now()) / (1000 * 60 * 60)))
+    const isExpired = Number.isFinite(deadlineMs) ? deadlineMs < Date.now() : false
     return {
       ...job,
       hoursLeft,
+      isExpired,
       urgent: hoursLeft <= 12,
       desc: job.description,
     }
@@ -297,6 +309,7 @@ export default function MarketplacePage() {
     const userId = String(user?._id || user?.id || '')
 
     const searched = listings.filter((l) =>
+      !l.isExpired &&
       (catFilter === "All" || l.category === catFilter) &&
       (l.title.toLowerCase().includes(search.toLowerCase()) || l.desc.toLowerCase().includes(search.toLowerCase()))
     )
@@ -445,13 +458,19 @@ export default function MarketplacePage() {
         )}
       </div>
       <section className="shell-panel">
-        <div className="filters">
-          {CATEGORIES.map(c => <button type="button" key={c} className={`filter-pill ${catFilter === c ? "active" : ""}`} onClick={() => setCatFilter(c)}>{c}</button>)}
-          <div className="filter-spacer" />
-          <input className="search-box" placeholder="Search requests..." value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-        <div className="market-toolbar">
-          <label className="market-toolbar-label">Sort By</label>
+        <div className="market-controls-line">
+          <input className="search-box market-search-long" placeholder="Search requests..." value={search} onChange={e => setSearch(e.target.value)} />
+          <CustomDropdown
+            options={FILTER_OPTIONS}
+            value={catFilter}
+            onChange={setCatFilter}
+            className="sort-dropdown filter-dropdown"
+            buttonClassName="sort-trigger"
+            menuClassName="sort-menu"
+            optionClassName="sort-option"
+            caretClassName="sort-caret"
+            placeholder="Filter"
+          />
           <CustomDropdown
             options={SORT_OPTIONS}
             value={sortBy}
@@ -465,46 +484,92 @@ export default function MarketplacePage() {
           />
         </div>
       </section>
-      <section className="shell-panel" key={`${catFilter}-${search}-${sortBy}-${requestOrderMode}`}>
-      <div className="listings-grid">
-        {filtered.map((l, idx) => {
-          const isMyListing = l.isMine
-          const myBid = myBidByJobId[String(l._id)]
-          const myBidStatus = myBid?.status
-          return (
-          <div
-            key={l._id}
-            className={`listing-card ${l.urgent ? "urgent" : ""}`}
-            style={{ animationDelay: `${Math.min(idx, 8) * 55}ms` }}
-            onClick={() => openListing(l._id)}
-          >
-            <div className="listing-header">
-              <span className="listing-category">{l.category}</span>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                {isMyListing && <span className="status-pill status-open">Your Request</span>}
-                <span className="listing-bids"><strong>{l.bids_count || 0}</strong> bids</span>
-              </div>
-            </div>
-            <div className="listing-signals">
-              {l.urgent && <span className="signal-pill danger">Ending Soon</span>}
-              {l.hasHighActivity && <span className="signal-pill">High Activity</span>}
-              {l.isFresh && <span className="signal-pill success">New</span>}
-              {myBidStatus === 'pending' && <span className="signal-pill">Your Bid Pending</span>}
-              {myBidStatus === 'accepted' && <span className="signal-pill success">You Won</span>}
-              {myBidStatus === 'rejected' && <span className="signal-pill danger">Not Selected</span>}
-            </div>
-            <div className="listing-title">{l.title}</div>
-            <div className="listing-desc">{l.desc.length > 100 ? `${l.desc.substring(0, 100)}...` : l.desc}</div>
-            <div className="listing-footer">
-              <div>
-                <div className="budget-label">Budget Cap</div>
-                <div className="budget-amount">${l.budget.toLocaleString()} <span>max</span></div>
-              </div>
-              <Timer hours={l.hoursLeft} />
-            </div>
+      <section className={marketViewMode === 'list' ? 'market-list-section' : 'shell-panel'} key={`${catFilter}-${search}-${sortBy}-${requestOrderMode}-${marketViewMode}`}>
+        {marketViewMode === 'card' ? (
+          <div className="listings-grid">
+            {filtered.map((l, idx) => {
+              const isMyListing = l.isMine
+              const myBid = myBidByJobId[String(l._id)]
+              const myBidStatus = myBid?.status
+              return (
+                <div
+                  key={l._id}
+                  className={`listing-card ${l.urgent ? "urgent" : ""}`}
+                  style={{ animationDelay: `${Math.min(idx, 8) * 55}ms` }}
+                  onClick={() => openListing(l._id)}
+                >
+                  <div className="listing-header">
+                    <span className="listing-category">{l.category}</span>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      {isMyListing && <span className="status-pill status-open">Your Request</span>}
+                      <span className="listing-bids"><strong>{l.bids_count || 0}</strong> bids</span>
+                    </div>
+                  </div>
+                  <div className="listing-signals">
+                    {l.urgent && <span className="signal-pill danger">Ending Soon</span>}
+                    {l.hasHighActivity && <span className="signal-pill">High Activity</span>}
+                    {l.isFresh && <span className="signal-pill success">New</span>}
+                    {myBidStatus === 'pending' && <span className="signal-pill">Your Bid Pending</span>}
+                    {myBidStatus === 'accepted' && <span className="signal-pill success">You Won</span>}
+                    {myBidStatus === 'rejected' && <span className="signal-pill danger">Not Selected</span>}
+                  </div>
+                  <div className="listing-title">{l.title}</div>
+                  <div className="listing-desc">{l.desc.length > 100 ? `${l.desc.substring(0, 100)}...` : l.desc}</div>
+                  <div className="listing-footer">
+                    <div>
+                      <div className="budget-label">Budget Cap</div>
+                      <div className="budget-amount">${l.budget.toLocaleString()} <span>max</span></div>
+                    </div>
+                    <Timer hours={l.hoursLeft} />
+                  </div>
+                </div>
+              )
+            })}
           </div>
-        )})}
-      </div>
+        ) : (
+          <div className="mturk-list">
+            {filtered.map((listing) => {
+              const statusClass = listing.isMine
+                ? 'status-open'
+                : listing.status === 'closed' || listing.status === 'completed'
+                  ? 'status-closed'
+                  : 'status-open'
+              const safeHoursLeft = Math.max(0, Number(listing.hoursLeft) || 0)
+              const timeLabel = safeHoursLeft === 0 ? 'Ended' : `${safeHoursLeft}h left`
+              const bidsCount = Number(listing.bids_count || 0)
+              const statusLabel = String(listing.status || 'open')
+              const lowestBid = Array.isArray(listing.bids) && listing.bids.length
+                ? Math.min(...listing.bids.map((bid) => Number(bid.amount || Infinity)))
+                : null
+
+              return (
+                <article key={listing._id} className="mturk-row" onClick={() => openListing(listing._id)}>
+                  <div className="mturk-main">
+                    <div className="mturk-category">{listing.category}</div>
+                    <h3 className="mturk-title">{listing.title}</h3>
+                    <p className="mturk-desc">{listing.desc}</p>
+                    <div className="mturk-metrics">
+                      <span>
+                        <Clock3 size={13} />
+                        {timeLabel}
+                      </span>
+                      <span>
+                        <Tag size={13} />
+                        {`${bidsCount} bids`}
+                      </span>
+                      <span className={`status-pill ${statusClass}`}>{statusLabel}</span>
+                    </div>
+                  </div>
+
+                  <aside className="mturk-side">
+                    <div className="mturk-budget-label">Budget Cap</div>
+                    <div className="mturk-budget">${Number(listing.budget || 0).toLocaleString()}</div>
+                  </aside>
+                </article>
+              )
+            })}
+          </div>
+        )}
       </section>
       {filtered.length === 0 && <div className="empty"><div className="empty-icon"><Search size={44} /></div><h3>No requests found</h3><p>Try adjusting your filters or post a new request.</p></div>}
 
