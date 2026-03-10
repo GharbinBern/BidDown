@@ -44,6 +44,17 @@ export const api = {
   updateJob: (id, data) => client.put(`/jobs/${id}`, data),
   deleteJob: (id) => client.delete(`/jobs/${id}`),
   closeJob: (id, data) => client.post(`/jobs/${id}/close`, data),
+  getWorkflow: (id) => client.get(`/jobs/${id}/workflow`),
+  updateContractDraft: (id, data) => client.put(`/jobs/${id}/contract`, data),
+  confirmContract: (id) => client.post(`/jobs/${id}/contract/confirm`),
+  depositEscrow: (id, data = {}) => client.post(`/jobs/${id}/escrow/deposit`, data),
+  startWork: (id) => client.post(`/jobs/${id}/work/start`),
+  addProgressUpdate: (id, data) => client.post(`/jobs/${id}/work/progress`, data),
+  submitWork: (id, data = {}) => client.post(`/jobs/${id}/work/submit`, data),
+  approveWork: (id) => client.post(`/jobs/${id}/review/approve`),
+  requestRevision: (id, data = {}) => client.post(`/jobs/${id}/review/request-revision`, data),
+  raiseDispute: (id, data = {}) => client.post(`/jobs/${id}/dispute`, data),
+  checkWorkflowTimeout: (id) => client.post(`/jobs/${id}/workflow/check-timeout`),
 
   // Bids
   submitBid: (data) => client.post('/bids', data),

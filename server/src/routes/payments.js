@@ -27,6 +27,10 @@ router.post('/create-intent', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ error: 'No winning bid on this job' });
     }
 
+    if (job.workflow_stage !== 'escrow') {
+      return res.status(400).json({ error: 'Payment intent can only be created during escrow stage' });
+    }
+
     // Create payment intent
     const paymentIntent = await stripeClient.paymentIntents.create({
       amount: Math.round(job.escrow_amount * 100), // Amount in cents
@@ -46,7 +50,7 @@ router.post('/create-intent', authMiddleware, async (req, res, next) => {
   }
 });
 
-// Confirm payment and release funds (webhook or direct confirmation)
+// Confirm payment and secure funds in escrow
 router.post('/confirm', authMiddleware, async (req, res, next) => {
   try {
     const { job_id, payment_intent_id } = req.body;
@@ -67,12 +71,17 @@ router.post('/confirm', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ error: 'Payment not successful' });
     }
 
-    // Update job status
-    job.escrow_released = true;
+    // Escrow is funded, work can begin.
+    job.escrow_released = false;
+    job.escrow_deposited_at = new Date();
+    job.payment_intent_id = payment_intent_id;
+    if (job.workflow_stage === 'escrow') {
+      job.workflow_stage = 'in_progress';
+    }
     await job.save();
 
     res.json({
-      message: 'Payment confirmed and funds released',
+      message: 'Payment confirmed and funds secured in escrow',
       job,
     });
   } catch (err) {
@@ -95,9 +104,11 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       const paymentIntent = event.data.object;
       const jobId = paymentIntent.metadata.job_id;
 
-      // Update job
+      // Update job escrow funding marker.
       await Job.findByIdAndUpdate(jobId, {
-        escrow_released: true,
+        escrow_released: false,
+        escrow_deposited_at: new Date(),
+        workflow_stage: 'in_progress',
       });
 
       console.log(`Payment succeeded for job ${jobId}`);

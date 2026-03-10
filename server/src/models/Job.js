@@ -39,6 +39,12 @@ const jobSchema = new mongoose.Schema({
     default: 'open',
   },
 
+  workflow_stage: {
+    type: String,
+    enum: ['bidding', 'contract', 'escrow', 'in_progress', 'review', 'dispute', 'completed'],
+    default: 'bidding',
+  },
+
   // Auction Details
   winning_bid_id: {
     type: mongoose.Schema.Types.ObjectId,
@@ -59,6 +65,60 @@ const jobSchema = new mongoose.Schema({
   rating_given: Boolean,
   escrow_amount: Number,
   escrow_released: Boolean,
+  payment_intent_id: String,
+  payment_released_at: Date,
+
+  contract_terms: {
+    scope: String,
+    deadline: Date,
+    agreed_price: Number,
+    buyer_confirmed: {
+      type: Boolean,
+      default: false,
+    },
+    seller_confirmed: {
+      type: Boolean,
+      default: false,
+    },
+    confirmed_at: Date,
+  },
+
+  escrow_deposited_at: Date,
+
+  work_started_at: Date,
+  progress_updates: {
+    type: [
+      {
+        message: String,
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+    default: [],
+  },
+  work_submitted_at: Date,
+  deliverable_note: String,
+  deliverable_url: String,
+
+  review_deadline: Date,
+  revision_rounds_used: {
+    type: Number,
+    default: 0,
+  },
+
+  dispute_raised: {
+    type: Boolean,
+    default: false,
+  },
+  dispute_reason: String,
+  dispute_raised_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+  },
+  dispute_raised_at: Date,
 
   // Timestamps
   createdAt: {
@@ -75,5 +135,6 @@ const jobSchema = new mongoose.Schema({
 jobSchema.index({ owner_id: 1, status: 1 });
 jobSchema.index({ category: 1, status: 1 });
 jobSchema.index({ deadline: 1 });
+jobSchema.index({ workflow_stage: 1, review_deadline: 1 });
 
 export default mongoose.model('Job', jobSchema);

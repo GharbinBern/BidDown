@@ -1,5 +1,35 @@
 import { useNavigate } from 'react-router-dom'
-import { BadgeCheck, DollarSign, FileText, Lock, Search, TrendingDown, Users, CheckCircle2 } from 'lucide-react'
+import { BadgeCheck, CheckCircle2, Coins, DollarSign, FileText, Lock, Search, TrendingDown, Users } from 'lucide-react'
+
+const RAIN_COUNT = 32
+
+const RAIN_ITEMS = Array.from({ length: RAIN_COUNT }, (_, index) => {
+  const seed = (index * 9301 + 49297) % 233280
+  const ratio = seed / 233280
+  return {
+    id: index,
+    x: 2 + ratio * 96,
+    delay: (index % 8) * 0.55,
+    duration: 7 + (ratio * 5),
+    size: 14 + Math.round(ratio * 20),
+    drift: -18 + ratio * 36,
+    spin: -120 + ratio * 240,
+    opacity: 0.18 + ratio * 0.24,
+    kind: index % 3,
+  }
+})
+
+function CoinGlyph({ size }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 42 42" fill="none" aria-hidden="true">
+      <circle cx="21" cy="21" r="17" fill="#38a169" />
+      <circle cx="21" cy="21" r="12.5" stroke="#1f7a4f" strokeWidth="1.6" />
+      <path d="M24.2 15.9C23.5 15.3 22.3 14.8 20.8 14.8C18.6 14.8 17.1 15.9 17.1 17.6C17.1 19.4 18.7 20.1 20.7 20.6C22.4 21 23.1 21.4 23.1 22.3C23.1 23.3 22.1 24 20.7 24C19.3 24 18.2 23.5 17.2 22.7" stroke="#0f5132" strokeWidth="2" strokeLinecap="round" />
+      <path d="M20.7 13V15" stroke="#0f5132" strokeWidth="2" strokeLinecap="round" />
+      <path d="M20.7 24V26" stroke="#0f5132" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
 
 export default function HomePage() {
   const navigate = useNavigate()
@@ -7,19 +37,42 @@ export default function HomePage() {
   return (
     <div>
       <div className="hero">
-        <div className="hero-tag">Reverse Auction Marketplace</div>
-        <h1>You set the price.<br /><span className="highlight">Sellers compete.</span></h1>
-        <p>Post what you need, set your maximum budget, and watch verified sellers bid down to win your business.</p>
-        <div className="hero-btns">
-          <button className="btn btn-ghost" style={{ padding: "12px 28px", fontSize: "14px" }} onClick={() => navigate('/marketplace')}>
-            See Marketplace
-          </button>
+        <div className="money-rain" aria-hidden="true">
+          {RAIN_ITEMS.map((item) => (
+            <span
+              key={item.id}
+              className="money-drop"
+              style={{
+                left: `${item.x}%`,
+                animationDelay: `${item.delay}s`,
+                animationDuration: `${item.duration}s`,
+                opacity: item.opacity,
+                '--drop-drift': `${item.drift}px`,
+                '--drop-spin': `${item.spin}deg`,
+              }}
+            >
+              {item.kind === 0 && <Coins size={item.size} strokeWidth={1.9} />}
+              {item.kind === 1 && <DollarSign size={item.size} strokeWidth={2.1} />}
+              {item.kind === 2 && <CoinGlyph size={item.size + 2} />}
+            </span>
+          ))}
         </div>
-        <div className="hero-stats">
-          <div className="stat-item"><div className="stat-num">2,841</div><div className="stat-label">Active Requests</div></div>
-          <div className="stat-item"><div className="stat-num">$1.2M</div><div className="stat-label">Saved by Buyers</div></div>
-          <div className="stat-item"><div className="stat-num">18,400</div><div className="stat-label">Verified Sellers</div></div>
-          <div className="stat-item"><div className="stat-num">94%</div><div className="stat-label">Satisfaction Rate</div></div>
+
+        <div className="hero-content">
+          <div className="hero-tag">Reverse Auction Marketplace</div>
+          <h1>You set the price.<br /><span className="highlight">Sellers compete.</span></h1>
+          <p>Post what you need, set your maximum budget, and watch verified sellers bid down to win your business.</p>
+          <div className="hero-btns">
+            <button className="btn btn-ghost" style={{ padding: '12px 28px', fontSize: '14px' }} onClick={() => navigate('/marketplace')}>
+              See Marketplace
+            </button>
+          </div>
+          <div className="hero-stats">
+            <div className="stat-item"><div className="stat-num">2,841</div><div className="stat-label">Active Requests</div></div>
+            <div className="stat-item"><div className="stat-num">$1.2M</div><div className="stat-label">Saved by Buyers</div></div>
+            <div className="stat-item"><div className="stat-num">18,400</div><div className="stat-label">Verified Sellers</div></div>
+            <div className="stat-item"><div className="stat-num">94%</div><div className="stat-label">Satisfaction Rate</div></div>
+          </div>
         </div>
       </div>
       <div className="main">

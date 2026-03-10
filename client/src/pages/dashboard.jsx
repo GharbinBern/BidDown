@@ -35,7 +35,7 @@ function bidStatusLabel(status) {
 }
 
 function bidActionLabel(status) {
-  if (status === 'accepted') return 'Rate Buyer'
+  if (status === 'accepted') return 'Workflow'
   if (status === 'rejected' || status === 'withdrawn') return '—'
   return ''
 }
@@ -187,13 +187,23 @@ export default function DashboardPage() {
                 <td><span className={`status-pill ${mapStatusPill(l.status)}`}>{l.status}</span></td>
                 <td>
                   {(l.status === 'closed' || l.status === 'completed') && l.winning_bid_id ? (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => navigate(`/rating?jobId=${l._id}`)}
-                    >
-                      Rate Seller
-                    </button>
+                    l.status === 'completed' ? (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => navigate(`/rating?jobId=${l._id}`)}
+                      >
+                        Rate Seller
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => navigate(`/jobs/${l._id}`)}
+                      >
+                        Workflow
+                      </button>
+                    )
                   ) : (
                     <button
                       type="button"
@@ -221,13 +231,23 @@ export default function DashboardPage() {
               <div className="table-card-kv"><span>Budget</span><strong>${l.budget.toLocaleString()}</strong></div>
               <div className="table-card-kv"><span>Bids</span><strong>{l.bids_count || 0}</strong></div>
               {(l.status === 'closed' || l.status === 'completed') && l.winning_bid_id ? (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => navigate(`/rating?jobId=${l._id}`)}
-                >
-                  Rate Seller
-                </button>
+                l.status === 'completed' ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => navigate(`/rating?jobId=${l._id}`)}
+                  >
+                    Rate Seller
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => navigate(`/jobs/${l._id}`)}
+                  >
+                    Workflow
+                  </button>
+                )
               ) : (
                 <button
                   type="button"
@@ -256,13 +276,23 @@ export default function DashboardPage() {
                 <td style={{ color: "var(--muted)" }}>{formatRelativeTime(b.createdAt)}</td>
                 <td>
                   {b.status === 'accepted' ? (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => navigate(`/rating?jobId=${b.job_id?._id || b.job_id}`)}
-                    >
-                      Rate Buyer
-                    </button>
+                    b.job_id?.status === 'completed' ? (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => navigate(`/rating?jobId=${b.job_id?._id || b.job_id}`)}
+                      >
+                        Rate Buyer
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => navigate(`/jobs/${b.job_id?._id || b.job_id}`)}
+                      >
+                        Workflow
+                      </button>
+                    )
                   ) : (
                     <span style={{ color: 'var(--muted)', fontSize: 12 }}>{bidActionLabel(b.status)}</span>
                   )}
@@ -285,13 +315,23 @@ export default function DashboardPage() {
               <div className="table-card-kv"><span>Submitted</span><strong>{formatRelativeTime(b.createdAt)}</strong></div>
               <div className="table-card-kv"><span>Action</span><strong>{bidActionLabel(b.status)}</strong></div>
               {b.status === 'accepted' && (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => navigate(`/rating?jobId=${b.job_id?._id || b.job_id}`)}
-                >
-                  Rate Buyer
-                </button>
+                b.job_id?.status === 'completed' ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => navigate(`/rating?jobId=${b.job_id?._id || b.job_id}`)}
+                  >
+                    Rate Buyer
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => navigate(`/jobs/${b.job_id?._id || b.job_id}`)}
+                  >
+                    Workflow
+                  </button>
+                )
               )}
             </div>
           ))}

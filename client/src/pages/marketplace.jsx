@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Clock3, Search, Star, Tag, X } from 'lucide-react'
 import CustomDropdown from '../components/CustomDropdown'
@@ -49,7 +49,7 @@ function Timer({ hours }) {
   return <span className={`timer ${isHoursUnit && safeHours <= 12 ? "low" : ""}`}><span className="timer-dot" />{label}</span>
 }
 
-function ListingModal({ listing, onClose, onBid, onAcceptBid, user, myBids }) {
+function ListingModal({ listing, onClose, onBid, onAcceptBid, onOpenWorkflow, user, myBids }) {
   if (!listing) return null
   const [showBidForm, setShowBidForm] = useState(false)
   const [bidAmount, setBidAmount] = useState('')
@@ -66,6 +66,9 @@ function ListingModal({ listing, onClose, onBid, onAcceptBid, user, myBids }) {
   const hasExistingBid = !!existingBid
   const canSubmitBid = isSeller && !isOwner && !hasExistingBid
   const canAcceptBid = isOwner && listing.status === 'open'
+  const winningSellerId = listing.winning_bid_id?.seller_id?._id || listing.winning_bid_id?.seller_id
+  const isWinningSeller = !!userId && !!winningSellerId && String(winningSellerId) === String(userId)
+  const canOpenWorkflow = !!listing.winning_bid_id && (isOwner || isWinningSeller)
   const existingBidStatus = existingBid?.status
   
   const sortedBids = [...(listing.bids || [])].sort((a, b) => a.amount - b.amount)
@@ -195,6 +198,11 @@ function ListingModal({ listing, onClose, onBid, onAcceptBid, user, myBids }) {
         )}
 
         <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+          {canOpenWorkflow && (
+            <button type="button" className="btn btn-primary" onClick={() => onOpenWorkflow(listing._id)}>
+              Open Workflow
+            </button>
+          )}
           {canSubmitBid ? (
             showBidForm ? (
               <>
@@ -217,6 +225,7 @@ function ListingModal({ listing, onClose, onBid, onAcceptBid, user, myBids }) {
 }
 
 export default function MarketplacePage() {
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuthStore()
   const { jobs, loading, fetchJobs, selectedJob, fetchJob, closeJob, createJob } = useJobsStore()
@@ -662,6 +671,10 @@ export default function MarketplacePage() {
         onClose={() => setSelectedJobId(null)}
         onBid={handleBidSubmit}
         onAcceptBid={handleAcceptBid}
+        onOpenWorkflow={(jobId) => {
+          setSelectedJobId(null)
+          navigate(`/jobs/${jobId}`)
+        }}
       />
     </div>
   )
