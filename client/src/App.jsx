@@ -1253,6 +1253,46 @@ const style = `
     gap: 16px;
     align-items: start;
   }
+  .prof-layout.prof-layout-solo {
+    grid-template-columns: 250px;
+  }
+  .prof-layout.prof-layout-stretch {
+    display: block;
+  }
+  .prof-layout.prof-layout-stretch .prof-sidebar {
+    width: 100%;
+    min-height: calc(100vh - 220px);
+    padding: 24px;
+    gap: 12px;
+  }
+  .prof-layout.prof-layout-stretch .prof-avatar-block {
+    padding: 18px;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .prof-layout.prof-layout-stretch .profile-avatar {
+    width: 64px;
+    height: 64px;
+    font-size: 24px;
+  }
+  .prof-layout.prof-layout-stretch .prof-name {
+    font-size: 22px;
+  }
+  .prof-layout.prof-layout-stretch .prof-email,
+  .prof-layout.prof-layout-stretch .prof-role-text {
+    font-size: 13px;
+  }
+  .prof-layout.prof-layout-stretch .prof-nav-btn {
+    width: 100%;
+    padding: 12px 12px;
+    font-size: 13px;
+  }
+  .prof-layout.prof-layout-stretch .prof-logout-btn {
+    width: auto;
+    align-self: flex-start;
+    padding: 8px 11px;
+    font-size: 12px;
+  }
   .prof-sidebar {
     background: #ffffffde;
     border: 1px solid var(--border);
@@ -1289,6 +1329,12 @@ const style = `
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .prof-role-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.6px;
   }
   .prof-nav-btn {
     border: 1px solid transparent;
@@ -1341,6 +1387,30 @@ const style = `
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
+  }
+  .prof-overview-grid {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 10px;
+  }
+  .prof-mini-list {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .prof-mini-list .badge {
+    text-transform: none;
+  }
+  .prof-link-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .prof-inline-note {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
   }
   .prof-form-grid {
     display: grid;
@@ -1442,6 +1512,16 @@ const style = `
     display: flex;
     gap: 10px;
     align-items: flex-start;
+  }
+  .notif-main {
+    flex: 1;
+    min-width: 0;
+  }
+  .notif-action {
+    margin-left: auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
   }
   .notif-item.unread {
     border-color: var(--accent);
@@ -1689,14 +1769,23 @@ const style = `
       width: auto;
     }
     .market-controls-line {
+      display: grid;
+      grid-template-columns: 1fr;
       gap: 8px;
-      overflow-x: auto;
-      overflow-y: visible;
-      padding-bottom: 6px;
+      overflow: visible;
+      white-space: normal;
+      padding-bottom: 0;
     }
-    .market-search-long { min-width: 220px; }
-    .sort-dropdown { width: auto; min-width: 150px; }
-    .filter-dropdown { min-width: 130px; }
+    .market-search-long,
+    .sort-dropdown,
+    .filter-dropdown {
+      width: 100%;
+      min-width: 0;
+    }
+    .sort-trigger {
+      width: 100%;
+      justify-content: space-between;
+    }
     .table { display: none; }
     .table-cards { display: block; }
     .workspace-subtitle { font-size: 12px; }
@@ -1706,6 +1795,12 @@ const style = `
       padding: 10px;
     }
     .prof-stats-row {
+      grid-template-columns: 1fr;
+    }
+    .prof-overview-grid {
+      grid-template-columns: 1fr;
+    }
+    .prof-link-grid {
       grid-template-columns: 1fr;
     }
     .prof-form-grid {
@@ -1733,6 +1828,26 @@ const style = `
     }
     .wf-layout {
       grid-template-columns: 1fr;
+    }
+    .wf-rail {
+      gap: 6px;
+      padding-bottom: 8px;
+    }
+    .wf-rail-segment {
+      flex: 0 0 92px;
+      min-width: 92px;
+    }
+    .wf-rail-line {
+      min-width: 14px;
+      margin: 14px 6px 0;
+    }
+    .wf-rail-label {
+      white-space: normal;
+      text-align: center;
+      line-height: 1.2;
+      letter-spacing: 0.5px;
+      font-size: 9px;
+      max-width: 82px;
     }
     .wf-data-grid.three {
       grid-template-columns: 1fr 1fr;

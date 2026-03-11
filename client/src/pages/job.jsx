@@ -127,7 +127,7 @@ export default function JobDetailPage() {
     setBusyAction(key)
     try {
       await action()
-      await fetchJob(id)
+      await fetchJob(id, { silent: true })
       toast.success(successMessage)
     } catch (error) {
       toast.error(error.response?.data?.error || 'Action failed')
@@ -136,14 +136,8 @@ export default function JobDetailPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="main">
-        <div className="loading-panel" style={{ marginBottom: 0 }}>
-          <div className="loading-row"><span className="loading-dot" />Loading request details...</div>
-        </div>
-      </div>
-    )
+  if (loading && !selectedJob) {
+    return <div className="main" />
   }
 
   if (!selectedJob) {
@@ -265,7 +259,7 @@ export default function JobDetailPage() {
               <div className="wf-action-row">
                 <button className="btn btn-primary" disabled={busyAction === 'confirmContract'} onClick={() => runAction('confirmContract', () => api.confirmContract(id), 'Contract confirmation saved')}>
                   <FileSignature size={14} />
-                  {busyAction === 'confirmContract' ? 'Saving...' : isBuyer ? 'Buyer Sign Contract' : 'Seller Sign Contract'}
+                  {busyAction === 'confirmContract' ? 'Saving...' : 'Sign Contract'}
                 </button>
               </div>
             </>

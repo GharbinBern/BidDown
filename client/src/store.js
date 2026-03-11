@@ -51,14 +51,19 @@ export const useJobsStore = create((set, get) => ({
     }
   },
 
-  fetchJob: async (id) => {
-    set({ loading: true })
+  fetchJob: async (id, options = {}) => {
+    const { silent = false } = options
+    if (!silent) {
+      set({ loading: true })
+    }
     try {
       const { data } = await api.getJob(id)
-      set({ selectedJob: data, loading: false })
+      set((state) => ({ selectedJob: data, loading: silent ? state.loading : false }))
       return data
     } catch (error) {
-      set({ loading: false })
+      if (!silent) {
+        set({ loading: false })
+      }
       throw error
     }
   },
@@ -137,12 +142,14 @@ const DEFAULT_PREFERENCES = {
   theme: localStorage.getItem('pref_theme') || 'light',
   requestOrderMode: localStorage.getItem('pref_request_order') || 'mine-first',
   marketViewMode: localStorage.getItem('pref_market_view') || 'list',
+  activeRole: localStorage.getItem('pref_active_role') || 'buyer',
 }
 
 export const usePreferencesStore = create((set) => ({
   theme: DEFAULT_PREFERENCES.theme,
   requestOrderMode: DEFAULT_PREFERENCES.requestOrderMode,
   marketViewMode: DEFAULT_PREFERENCES.marketViewMode,
+  activeRole: DEFAULT_PREFERENCES.activeRole,
 
   setTheme: (theme) => {
     localStorage.setItem('pref_theme', theme)
@@ -157,6 +164,11 @@ export const usePreferencesStore = create((set) => ({
   setMarketViewMode: (marketViewMode) => {
     localStorage.setItem('pref_market_view', marketViewMode)
     set({ marketViewMode })
+  },
+
+  setActiveRole: (activeRole) => {
+    localStorage.setItem('pref_active_role', activeRole)
+    set({ activeRole })
   },
 }))
 

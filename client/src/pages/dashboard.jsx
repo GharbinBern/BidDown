@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuthStore } from '../store'
+import { useAuthStore, usePreferencesStore } from '../store'
 import toast from 'react-hot-toast'
 import { Flame, Goal, Layers3 } from 'lucide-react'
 import { api } from '../api'
@@ -43,6 +43,7 @@ function bidActionLabel(status) {
 export default function DashboardPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const { activeRole, setActiveRole } = usePreferencesStore()
   const [dashTab, setDashTab] = useState('requests')
   const [jobs, setJobs] = useState([])
   const [myBids, setMyBids] = useState([])
@@ -77,14 +78,23 @@ export default function DashboardPage() {
   const roles = user?.roles || []
   const isBuyer = roles.includes('buyer')
   const isSeller = roles.includes('seller')
+  const roleMode = isBuyer && isSeller ? activeRole : (isSeller ? 'seller' : 'buyer')
+
+  useEffect(() => {
+    if (isBuyer && isSeller) return
+    const nextRole = isSeller ? 'seller' : 'buyer'
+    if (activeRole !== nextRole) {
+      setActiveRole(nextRole)
+    }
+  }, [isBuyer, isSeller, activeRole, setActiveRole])
 
   const tabs = useMemo(() => {
     const result = []
-    if (isBuyer) result.push({ key: 'requests', label: 'My Requests' })
-    if (isSeller) result.push({ key: 'bids', label: 'My Bids' })
+    if (roleMode === 'buyer' && isBuyer) result.push({ key: 'requests', label: 'My Requests' })
+    if (roleMode === 'seller' && isSeller) result.push({ key: 'bids', label: 'My Bids' })
     result.push({ key: 'transactions', label: 'Transactions' })
     return result
-  }, [isBuyer, isSeller])
+  }, [isBuyer, isSeller, roleMode])
 
   useEffect(() => {
     if (!tabs.some((t) => t.key === dashTab)) {
@@ -116,55 +126,139 @@ export default function DashboardPage() {
   ]
   const totalInMix = requestStatusMix.reduce((sum, item) => sum + item.value, 0)
 
+  const submittedBids = myBids.length
+  const activeBids = myBids.filter((bid) => bid.status === 'pending').length
+  const wonBids = myBids.filter((bid) => bid.status === 'accepted').length
+  const lostOrWithdrawnBids = myBids.filter((bid) => bid.status === 'rejected' || bid.status === 'withdrawn').length
+  const avgBidAmount = submittedBids > 0
+    ? myBids.reduce((sum, bid) => sum + Number(bid.amount || 0), 0) / submittedBids
+    : 0
+
+  const bidStatusMix = [
+    { label: 'Active', value: activeBids, kind: 'open' },
+    { label: 'Won', value: wonBids, kind: 'completed' },
+    { label: 'Lost', value: lostOrWithdrawnBids, kind: 'closed' },
+  ]
+  const totalBidMix = bidStatusMix.reduce((sum, item) => sum + item.value, 0)
+  const sellerResolved = wonBids + lostOrWithdrawnBids
+  const sellerResolveRate = submittedBids > 0 ? Math.round((sellerResolved / submittedBids) * 100) : 0
+
+  const summaryRole = roleMode
+
   return (
     <div className="main">
       <div className="workspace-head">
         <div>
           <div className="section-title" style={{ marginBottom: 10 }}>Your <span>Space</span></div>
-          <p className="workspace-subtitle">A live control center for requests, bidding activity, and savings performance.</p>
+          {isBuyer && isSeller && (
+            <div className="sub-tabs" style={{ marginTop: 12, marginBottom: 0 }}>
+              <button
+                type="button"
+                className={`sub-tab ${roleMode === 'buyer' ? 'active' : ''}`}
+                onClick={() => setActiveRole('buyer')}
+              >
+                Buyer View
+              </button>
+              <button
+                type="button"
+                className={`sub-tab ${roleMode === 'seller' ? 'active' : ''}`}
+                onClick={() => setActiveRole('seller')}
+              >
+                Seller View
+              </button>
+            </div>
+          )}
         </div>
         <div className="workspace-badge">
           <Goal size={16} />
-          <span>{completedRate}% completion flow</span>
+            <span>{summaryRole === 'seller' ? `${sellerResolveRate}% bid resolution` : `${completedRate}% completion flow`}</span>
         </div>
       </div>
       <div className="dashboard-grid">
-        <div className="dash-card"><div className="dash-card-label">Active Requests</div><div className="dash-card-value accent">{activeRequests}</div><div className="dash-card-sub">{receivingBids} receiving bids</div></div>
-        <div className="dash-card"><div className="dash-card-label">Total Saved</div><div className="dash-card-value green">${totalSaved.toLocaleString()}</div><div className="dash-card-sub">vs. budget cap on accepted bids</div></div>
-        <div className="dash-card"><div className="dash-card-label">Bids Submitted</div><div className="dash-card-value accent">{myBids.length}</div><div className="dash-card-sub">across active requests</div></div>
-        <div className="dash-card"><div className="dash-card-label">Avg Bid Reduction</div><div className="dash-card-value green">{avgReduction.toFixed(1)}%</div><div className="dash-card-sub">below your budget cap</div></div>
+          {summaryRole === 'buyer' ? (
+            <>
+              <div className="dash-card"><div className="dash-card-label">Active Requests</div><div className="dash-card-value accent">{activeRequests}</div><div className="dash-card-sub">{receivingBids} receiving bids</div></div>
+              <div className="dash-card"><div className="dash-card-label">Total Saved</div><div className="dash-card-value green">${totalSaved.toLocaleString()}</div><div className="dash-card-sub">vs. budget cap on accepted bids</div></div>
+              <div className="dash-card"><div className="dash-card-label">Bids Submitted</div><div className="dash-card-value accent">{myBids.length}</div><div className="dash-card-sub">across active requests</div></div>
+              <div className="dash-card"><div className="dash-card-label">Avg Bid Reduction</div><div className="dash-card-value green">{avgReduction.toFixed(1)}%</div><div className="dash-card-sub">below your budget cap</div></div>
+            </>
+          ) : (
+            <>
+              <div className="dash-card"><div className="dash-card-label">Active Bids</div><div className="dash-card-value accent">{activeBids}</div><div className="dash-card-sub">still pending decision</div></div>
+              <div className="dash-card"><div className="dash-card-label">Bids Won</div><div className="dash-card-value green">{wonBids}</div><div className="dash-card-sub">accepted requests</div></div>
+              <div className="dash-card"><div className="dash-card-label">Bids Submitted</div><div className="dash-card-value accent">{submittedBids}</div><div className="dash-card-sub">total proposals sent</div></div>
+              <div className="dash-card"><div className="dash-card-label">Avg Bid Amount</div><div className="dash-card-value green">${avgBidAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div><div className="dash-card-sub">across your submitted bids</div></div>
+            </>
+          )}
       </div>
       <div className="insight-grid">
-        <div className="insight-card">
-          <div className="insight-head"><Layers3 size={15} /> Request Status Mix</div>
-          <div className="stacked-meter" aria-label="Request status distribution">
-            {requestStatusMix.map((item) => {
-              const width = totalInMix === 0 ? 0 : (item.value / totalInMix) * 100
-              return (
-                <span
-                  key={item.label}
-                  className={`meter-segment ${item.kind}`}
-                  style={{ width: `${Math.max(width, item.value > 0 ? 8 : 0)}%` }}
-                  title={`${item.label}: ${item.value}`}
-                />
-              )
-            })}
-          </div>
-          <div className="meter-legend">
-            {requestStatusMix.map((item) => (
-              <span key={item.label}><i className={`dot ${item.kind}`} />{item.label}: {item.value}</span>
-            ))}
-          </div>
-        </div>
-        <div className="insight-card">
-          <div className="insight-head"><Flame size={15} /> Conversion Snapshot</div>
-          <div className="conversion-copy">
-            <strong>{closedOrCompleted}</strong> requests have reached closure or completion out of <strong>{myListings.length}</strong> total.
-          </div>
-          <div className="conversion-track" role="presentation">
-            <span style={{ width: `${Math.min(completedRate, 100)}%` }} />
-          </div>
-        </div>
+          {summaryRole === 'buyer' ? (
+            <>
+              <div className="insight-card">
+                <div className="insight-head"><Layers3 size={15} /> Request Status Mix</div>
+                <div className="stacked-meter" aria-label="Request status distribution">
+                  {requestStatusMix.map((item) => {
+                    const width = totalInMix === 0 ? 0 : (item.value / totalInMix) * 100
+                    return (
+                      <span
+                        key={item.label}
+                        className={`meter-segment ${item.kind}`}
+                        style={{ width: `${Math.max(width, item.value > 0 ? 8 : 0)}%` }}
+                        title={`${item.label}: ${item.value}`}
+                      />
+                    )
+                  })}
+                </div>
+                <div className="meter-legend">
+                  {requestStatusMix.map((item) => (
+                    <span key={item.label}><i className={`dot ${item.kind}`} />{item.label}: {item.value}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="insight-card">
+                <div className="insight-head"><Flame size={15} /> Conversion Snapshot</div>
+                <div className="conversion-copy">
+                  <strong>{closedOrCompleted}</strong> requests have reached closure or completion out of <strong>{myListings.length}</strong> total.
+                </div>
+                <div className="conversion-track" role="presentation">
+                  <span style={{ width: `${Math.min(completedRate, 100)}%` }} />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="insight-card">
+                <div className="insight-head"><Layers3 size={15} /> Bid Status Mix</div>
+                <div className="stacked-meter" aria-label="Bid status distribution">
+                  {bidStatusMix.map((item) => {
+                    const width = totalBidMix === 0 ? 0 : (item.value / totalBidMix) * 100
+                    return (
+                      <span
+                        key={item.label}
+                        className={`meter-segment ${item.kind}`}
+                        style={{ width: `${Math.max(width, item.value > 0 ? 8 : 0)}%` }}
+                        title={`${item.label}: ${item.value}`}
+                      />
+                    )
+                  })}
+                </div>
+                <div className="meter-legend">
+                  {bidStatusMix.map((item) => (
+                    <span key={item.label}><i className={`dot ${item.kind}`} />{item.label}: {item.value}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="insight-card">
+                <div className="insight-head"><Flame size={15} /> Outcome Snapshot</div>
+                <div className="conversion-copy">
+                  <strong>{sellerResolved}</strong> bids have been resolved out of <strong>{submittedBids}</strong> total submitted.
+                </div>
+                <div className="conversion-track" role="presentation">
+                  <span style={{ width: `${Math.min(sellerResolveRate, 100)}%` }} />
+                </div>
+              </div>
+            </>
+          )}
       </div>
       <div className="sub-tabs">
         {tabs.map((t) => (

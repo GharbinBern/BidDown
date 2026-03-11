@@ -411,6 +411,18 @@ router.put('/:id/contract', authMiddleware, [
     const nextDeadline = req.body.deadline ? new Date(req.body.deadline) : null;
     const nextPrice = req.body.agreed_price !== undefined ? Number(req.body.agreed_price) : null;
 
+    if (Number.isFinite(nextPrice)) {
+      const winningBid = await Bid.findById(job.winning_bid_id).select('amount');
+      if (!winningBid) {
+        return res.status(400).json({ error: 'No accepted bid for this job yet' });
+      }
+      if (nextPrice < winningBid.amount) {
+        return res.status(400).json({
+          error: `Agreed price cannot be lower than the accepted bid amount (${winningBid.amount})`,
+        });
+      }
+    }
+
     if (nextScope) job.contract_terms.scope = nextScope;
     if (nextDeadline) job.contract_terms.deadline = nextDeadline;
     if (Number.isFinite(nextPrice)) {

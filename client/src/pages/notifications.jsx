@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Bell, CheckCheck } from 'lucide-react'
+import { Bell } from 'lucide-react'
 import { useAuthStore, useNotificationsStore } from '../store'
 
 function formatNotifTime(value) {
@@ -26,8 +26,6 @@ export default function NotificationsPage() {
     loading,
     refreshNotifications,
     markRead,
-    markUnread,
-    markAllRead,
   } = useNotificationsStore()
 
   useEffect(() => {
@@ -42,26 +40,9 @@ export default function NotificationsPage() {
       <div className="workspace-head">
         <div>
           <div className="section-title" style={{ marginBottom: 8 }}>Your <span>Notifications</span></div>
-          <p className="workspace-subtitle">Every key event in one timeline: bid won, bid lost, and escrow released.</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span className="badge">{unreadCount} unread</span>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            onClick={() => markAllRead(user)}
-            disabled={notifications.length === 0 || unreadCount === 0}
-          >
-            <CheckCheck size={14} /> Mark All Read
-          </button>
-        </div>
+        <span className="badge">{unreadCount} unread</span>
       </div>
-
-      {loading && (
-        <div className="loading-panel">
-          <div className="loading-row"><span className="loading-dot" />Loading notification timeline...</div>
-        </div>
-      )}
 
       {!loading && notifications.length === 0 && (
         <div className="shell-panel empty">
@@ -72,43 +53,36 @@ export default function NotificationsPage() {
       )}
 
       {notifications.length > 0 && (
-        <section className="shell-panel">
-          <div className="notif-list">
-            {notifications.map((item) => (
-              <article key={item.id} className={`notif-item ${readIds.includes(item.id) ? '' : 'unread'}`}>
-                <span className={`notif-dot ${item.type === 'lost' ? 'lost' : item.type === 'escrow' ? 'escrow' : ''}`} />
-                <div>
-                  <h3 className="notif-title">{item.title}</h3>
-                  <p className="notif-detail">{item.detail}</p>
-                  <div className="notif-time">{formatNotifTime(item.timestamp)}</div>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                    {!readIds.includes(item.id) ? (
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => markRead(item.id, user)}>
-                        Mark Read
-                      </button>
-                    ) : (
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => markUnread(item.id, user)}>
-                        Mark Unread
-                      </button>
-                    )}
-                    {item.jobId && (
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-sm"
-                        onClick={() => {
-                          markRead(item.id, user)
-                          navigate(`/marketplace?jobId=${item.jobId}`)
-                        }}
-                      >
-                        View Request
-                      </button>
-                    )}
-                  </div>
+        <div className="notif-list">
+          {notifications.map((item) => (
+            <article
+              key={item.id}
+              className={`notif-item ${readIds.includes(item.id) ? '' : 'unread'}`}
+              onClick={() => markRead(item.id, user)}
+            >
+              <span className={`notif-dot ${item.type === 'lost' ? 'lost' : item.type === 'escrow' ? 'escrow' : ''}`} />
+              <div className="notif-main">
+                <h3 className="notif-title">{item.title}</h3>
+                <p className="notif-detail">{item.detail}</p>
+                <div className="notif-time">{formatNotifTime(item.timestamp)}</div>
+              </div>
+              {item.jobId && (
+                <div className="notif-action">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => {
+                      markRead(item.id, user)
+                      navigate(`/jobs/${item.jobId}`)
+                    }}
+                  >
+                    View Request
+                  </button>
                 </div>
-              </article>
-            ))}
-          </div>
-        </section>
+              )}
+            </article>
+          ))}
+        </div>
       )}
     </div>
   )
