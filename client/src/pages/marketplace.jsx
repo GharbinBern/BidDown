@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Clock3, Search, Star, Tag, X } from 'lucide-react'
-import CustomDropdown from '../components/CustomDropdown'
+import CustomDropdown from '../components/dropdown'
 import { useAuthStore, useBidsStore, useJobsStore, usePreferencesStore } from '../store'
 
 const CATEGORIES = ["All", "Design", "Development", "Marketing", "Writing", "Legal", "Consulting", "Other"]
@@ -106,11 +106,11 @@ function ListingModal({ listing, onClose, onBid, onAcceptBid, onOpenWorkflow, us
           </button>
         </div>
         <div className="info-row"><span className="info-label">Category</span><span className="listing-category">{listing.category}</span></div>
-        <div className="info-row"><span className="info-label">Budget Cap</span><span style={{ color: "var(--accent)", fontWeight: 700, fontFamily: "'Syne',sans-serif", fontSize: 18 }}>${listing.budget.toLocaleString()}</span></div>
+        <div className="info-row"><span className="info-label">Budget Cap</span><span style={{ color: "var(--accent)", fontWeight: 700, fontFamily: "'Geist Mono', monospace", fontSize: 18 }}>${listing.budget.toLocaleString()}</span></div>
         <div className="info-row"><span className="info-label">Time Remaining</span><Timer hours={listing.hoursLeft} /></div>
         <div className="info-row"><span className="info-label">Total Bids</span><span>{listing.bids_count || 0}</span></div>
         <div style={{ margin: "16px 0", color: "var(--muted)", fontSize: 13, lineHeight: 1.7 }}>{listing.desc}</div>
-        <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, marginBottom: 12, textAlign: isOwner ? 'left' : 'center' }}>
+        <div style={{ fontFamily: "'Geist Mono', monospace", fontWeight: 700, fontSize: 14, marginBottom: 12, textAlign: isOwner ? 'left' : 'center' }}>
           {isOwner ? "All Bids — Ranked Lowest First" : "Bids are sealed to non-owners"}
         </div>
         {isOwner ? (
@@ -121,7 +121,7 @@ function ListingModal({ listing, onClose, onBid, onAcceptBid, onOpenWorkflow, us
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span>{b.seller_id?.name || 'Seller'}</span>
                     {i === 0 && (
-                      <span style={{ color: "var(--green)", fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ color: "var(--blue)", fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         <Star size={12} strokeWidth={2} fill="currentColor" style={{ width: 12, height: 12, flex: '0 0 12px' }} /> LOWEST BID
                       </span>
                     )}
@@ -177,7 +177,7 @@ function ListingModal({ listing, onClose, onBid, onAcceptBid, onOpenWorkflow, us
 
         {hasExistingBid && !isOwner && (
           <div className="card" style={{ marginTop: 16, marginBottom: 12 }}>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, marginBottom: 10 }}>
+            <div style={{ fontFamily: "'Geist Mono', monospace", fontWeight: 700, fontSize: 14, marginBottom: 10 }}>
               Your Submitted Bid
             </div>
             <div className="info-row"><span className="info-label">Amount</span><span style={{ color: 'var(--accent)', fontWeight: 700 }}>${Number(existingBid.amount).toLocaleString()}</span></div>
@@ -185,7 +185,7 @@ function ListingModal({ listing, onClose, onBid, onAcceptBid, onOpenWorkflow, us
             <div className="info-row"><span className="info-label">Submitted</span><span>{formatRecordTime(existingBid.createdAt)}</span></div>
             <div style={{ marginTop: 10, color: 'var(--muted)', fontSize: 13 }}>{existingBid.note || 'No note was included with your bid.'}</div>
             {existingBidStatus === 'accepted' && (
-              <div style={{ marginTop: 10, color: 'var(--green)', fontSize: 12 }}>
+              <div style={{ marginTop: 10, color: 'var(--blue)', fontSize: 12 }}>
                 You won this request. Next step: coordinate delivery details with the buyer.
               </div>
             )}

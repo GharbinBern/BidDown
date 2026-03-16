@@ -169,94 +169,21 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-        <div className="workspace-badge">
-          <Goal size={16} />
-            <span>{summaryRole === 'seller' ? `${sellerResolveRate}% bid resolution` : `${completedRate}% completion flow`}</span>
-        </div>
       </div>
       <div className="dashboard-grid">
           {summaryRole === 'buyer' ? (
             <>
               <div className="dash-card"><div className="dash-card-label">Active Requests</div><div className="dash-card-value accent">{activeRequests}</div><div className="dash-card-sub">{receivingBids} receiving bids</div></div>
-              <div className="dash-card"><div className="dash-card-label">Total Saved</div><div className="dash-card-value green">${totalSaved.toLocaleString()}</div><div className="dash-card-sub">vs. budget cap on accepted bids</div></div>
+              <div className="dash-card"><div className="dash-card-label">Total Saved</div><div className="dash-card-value highlight">${totalSaved.toLocaleString()}</div><div className="dash-card-sub">vs. budget cap on accepted bids</div></div>
               <div className="dash-card"><div className="dash-card-label">Bids Submitted</div><div className="dash-card-value accent">{myBids.length}</div><div className="dash-card-sub">across active requests</div></div>
-              <div className="dash-card"><div className="dash-card-label">Avg Bid Reduction</div><div className="dash-card-value green">{avgReduction.toFixed(1)}%</div><div className="dash-card-sub">below your budget cap</div></div>
+              <div className="dash-card"><div className="dash-card-label">Avg Bid Reduction</div><div className="dash-card-value highlight">{avgReduction.toFixed(1)}%</div><div className="dash-card-sub">below your budget cap</div></div>
             </>
           ) : (
             <>
               <div className="dash-card"><div className="dash-card-label">Active Bids</div><div className="dash-card-value accent">{activeBids}</div><div className="dash-card-sub">still pending decision</div></div>
-              <div className="dash-card"><div className="dash-card-label">Bids Won</div><div className="dash-card-value green">{wonBids}</div><div className="dash-card-sub">accepted requests</div></div>
+              <div className="dash-card"><div className="dash-card-label">Bids Won</div><div className="dash-card-value highlight">{wonBids}</div><div className="dash-card-sub">accepted requests</div></div>
               <div className="dash-card"><div className="dash-card-label">Bids Submitted</div><div className="dash-card-value accent">{submittedBids}</div><div className="dash-card-sub">total proposals sent</div></div>
-              <div className="dash-card"><div className="dash-card-label">Avg Bid Amount</div><div className="dash-card-value green">${avgBidAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div><div className="dash-card-sub">across your submitted bids</div></div>
-            </>
-          )}
-      </div>
-      <div className="insight-grid">
-          {summaryRole === 'buyer' ? (
-            <>
-              <div className="insight-card">
-                <div className="insight-head"><Layers3 size={15} /> Request Status Mix</div>
-                <div className="stacked-meter" aria-label="Request status distribution">
-                  {requestStatusMix.map((item) => {
-                    const width = totalInMix === 0 ? 0 : (item.value / totalInMix) * 100
-                    return (
-                      <span
-                        key={item.label}
-                        className={`meter-segment ${item.kind}`}
-                        style={{ width: `${Math.max(width, item.value > 0 ? 8 : 0)}%` }}
-                        title={`${item.label}: ${item.value}`}
-                      />
-                    )
-                  })}
-                </div>
-                <div className="meter-legend">
-                  {requestStatusMix.map((item) => (
-                    <span key={item.label}><i className={`dot ${item.kind}`} />{item.label}: {item.value}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="insight-card">
-                <div className="insight-head"><Flame size={15} /> Conversion Snapshot</div>
-                <div className="conversion-copy">
-                  <strong>{closedOrCompleted}</strong> requests have reached closure or completion out of <strong>{myListings.length}</strong> total.
-                </div>
-                <div className="conversion-track" role="presentation">
-                  <span style={{ width: `${Math.min(completedRate, 100)}%` }} />
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="insight-card">
-                <div className="insight-head"><Layers3 size={15} /> Bid Status Mix</div>
-                <div className="stacked-meter" aria-label="Bid status distribution">
-                  {bidStatusMix.map((item) => {
-                    const width = totalBidMix === 0 ? 0 : (item.value / totalBidMix) * 100
-                    return (
-                      <span
-                        key={item.label}
-                        className={`meter-segment ${item.kind}`}
-                        style={{ width: `${Math.max(width, item.value > 0 ? 8 : 0)}%` }}
-                        title={`${item.label}: ${item.value}`}
-                      />
-                    )
-                  })}
-                </div>
-                <div className="meter-legend">
-                  {bidStatusMix.map((item) => (
-                    <span key={item.label}><i className={`dot ${item.kind}`} />{item.label}: {item.value}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="insight-card">
-                <div className="insight-head"><Flame size={15} /> Outcome Snapshot</div>
-                <div className="conversion-copy">
-                  <strong>{sellerResolved}</strong> bids have been resolved out of <strong>{submittedBids}</strong> total submitted.
-                </div>
-                <div className="conversion-track" role="presentation">
-                  <span style={{ width: `${Math.min(sellerResolveRate, 100)}%` }} />
-                </div>
-              </div>
+              <div className="dash-card"><div className="dash-card-label">Avg Bid Amount</div><div className="dash-card-value highlight">${avgBidAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div><div className="dash-card-sub">across your submitted bids</div></div>
             </>
           )}
       </div>
@@ -274,7 +201,7 @@ export default function DashboardPage() {
           <tbody>
             {myListings.map((l, i) => (
               <tr key={l._id || i}>
-                <td style={{ fontFamily: "'Syne',sans-serif", fontWeight: 600 }}>{l.title}</td>
+                <td style={{ fontFamily: "'Geist Mono', monospace", fontWeight: 600 }}>{l.title}</td>
                 <td><span className="listing-category">{l.category}</span></td>
                 <td style={{ color: "var(--accent)", fontWeight: 700 }}>${l.budget.toLocaleString()}</td>
                 <td>{l.bids_count || 0}</td>
@@ -364,7 +291,7 @@ export default function DashboardPage() {
           <tbody>
             {myBids.map((b, i) => (
               <tr key={b._id || i}>
-                <td style={{ fontFamily: "'Syne',sans-serif", fontWeight: 600 }}>{b.job_id?.title || 'Request'}</td>
+                <td style={{ fontFamily: "'Geist Mono', monospace", fontWeight: 600 }}>{b.job_id?.title || 'Request'}</td>
                 <td style={{ color: "var(--accent)", fontWeight: 700 }}>${b.amount.toLocaleString()}</td>
                 <td><span className={`status-pill ${mapStatusPill(b.status)}`}>{bidStatusLabel(b.status)}</span></td>
                 <td style={{ color: "var(--muted)" }}>{formatRelativeTime(b.createdAt)}</td>

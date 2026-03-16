@@ -1,16 +1,14 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Moon, SlidersHorizontal, Sun } from 'lucide-react'
+import { LogOut, Mail, User } from 'lucide-react'
 import { useAuthStore, usePreferencesStore } from '../store'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
   const {
-    theme,
     requestOrderMode,
     marketViewMode,
-    setTheme,
     setRequestOrderMode,
     setMarketViewMode,
   } = usePreferencesStore()
@@ -25,99 +23,68 @@ export default function SettingsPage() {
   }, [user])
 
   const roles = user?.roles || []
-  const roleLabel = roles[0] || 'member'
+  const memberSince = user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : null
 
   return (
-    <div className="main">
-      <div className="section-title" style={{ marginBottom: 12 }}>Your <span>Profile</span></div>
+    <div className="main prof-page">
+      <div className="prof-grid">
+        <div className="prof-identity">
+          <div className="profile-avatar">{initials}</div>
+          <div className="prof-name">{user?.name || 'User'}</div>
+          <div className="prof-meta">
+            <span><Mail size={13} /> {user?.email || 'No email'}</span>
+            <span><User size={13} /> {roles[0] || 'member'}</span>
+          </div>
+          {memberSince && <div className="prof-since">Member since {memberSince}</div>}
+        </div>
 
-      <section className="prof-layout prof-layout-stretch">
-        <aside className="prof-sidebar">
-          <div className="prof-avatar-block">
-            <div className="profile-avatar">{initials}</div>
-            <div className="prof-name">{user?.name || 'User'}</div>
-            <div className="prof-email">{user?.email || 'No email available'}</div>
-            <div className="prof-role-text" style={{ textTransform: 'lowercase' }}>{roleLabel}</div>
+        <div className="prof-prefs">
+          <div className="prof-toggle-row">
+            <div className="prof-toggle-label">
+              <div className="prof-toggle-name">Show my requests first</div>
+              <div className="prof-toggle-desc">Prioritize your own listings at the top of the marketplace</div>
+            </div>
+            <div
+              className={`pref-switch ${requestOrderMode === 'mine-first' ? 'on' : ''}`}
+              role="switch"
+              aria-checked={requestOrderMode === 'mine-first'}
+              tabIndex={0}
+              onClick={() => setRequestOrderMode(requestOrderMode === 'mine-first' ? 'mixed' : 'mine-first')}
+              onKeyDown={(e) => e.key === 'Enter' && setRequestOrderMode(requestOrderMode === 'mine-first' ? 'mixed' : 'mine-first')}
+            >
+              <span className="pref-switch-thumb" />
+            </div>
           </div>
 
-          <section className="shell-panel prof-panel">
-            <div className="settings-section-title"><SlidersHorizontal size={16} /> Preferences</div>
-
-            <div className="settings-compact-group" style={{ marginBottom: 10 }}>
-              <div className="settings-compact-label">Appearance</div>
-              <div className="settings-row">
-                <button
-                  type="button"
-                  className={`settings-toggle ${theme === 'light' ? 'active' : ''}`}
-                  onClick={() => setTheme('light')}
-                >
-                  <Sun size={15} /> Light
-                </button>
-                <button
-                  type="button"
-                  className={`settings-toggle ${theme === 'dark' ? 'active' : ''}`}
-                  onClick={() => setTheme('dark')}
-                >
-                  <Moon size={15} /> Dark
-                </button>
-              </div>
+          <div className="prof-toggle-row">
+            <div className="prof-toggle-label">
+              <div className="prof-toggle-name">List view</div>
+              <div className="prof-toggle-desc">Display marketplace as a compact list instead of cards</div>
             </div>
-
-            <div className="settings-grid-compact">
-              <div className="settings-compact-group">
-                <div className="settings-compact-label">Request Order</div>
-                <div className="settings-row">
-                  <button
-                    type="button"
-                    className={`settings-toggle ${requestOrderMode === 'mine-first' ? 'active' : ''}`}
-                    onClick={() => setRequestOrderMode('mine-first')}
-                  >
-                    Mine First
-                  </button>
-                  <button
-                    type="button"
-                    className={`settings-toggle ${requestOrderMode === 'mixed' ? 'active' : ''}`}
-                    onClick={() => setRequestOrderMode('mixed')}
-                  >
-                    Mixed
-                  </button>
-                </div>
-              </div>
-
-              <div className="settings-compact-group">
-                <div className="settings-compact-label">Marketplace View</div>
-                <div className="settings-row">
-                  <button
-                    type="button"
-                    className={`settings-toggle ${marketViewMode === 'card' ? 'active' : ''}`}
-                    onClick={() => setMarketViewMode('card')}
-                  >
-                    Card
-                  </button>
-                  <button
-                    type="button"
-                    className={`settings-toggle ${marketViewMode === 'list' ? 'active' : ''}`}
-                    onClick={() => setMarketViewMode('list')}
-                  >
-                    List
-                  </button>
-                </div>
-              </div>
+            <div
+              className={`pref-switch ${marketViewMode === 'list' ? 'on' : ''}`}
+              role="switch"
+              aria-checked={marketViewMode === 'list'}
+              tabIndex={0}
+              onClick={() => setMarketViewMode(marketViewMode === 'list' ? 'card' : 'list')}
+              onKeyDown={(e) => e.key === 'Enter' && setMarketViewMode(marketViewMode === 'list' ? 'card' : 'list')}
+            >
+              <span className="pref-switch-thumb" />
             </div>
-          </section>
+          </div>
+        </div>
 
-          <button
-            type="button"
-            className="prof-logout-btn"
-            onClick={() => {
-              logout()
-              navigate('/')
-            }}
-          >
-            <LogOut size={14} /> Sign Out
-          </button>
-        </aside>
-      </section>
+        <button
+          type="button"
+          className="prof-logout-btn"
+          onClick={() => {
+            logout()
+            navigate('/')
+          }}
+        >
+          <LogOut size={14} /> Sign Out
+        </button>
+      </div>
     </div>
   )
 }

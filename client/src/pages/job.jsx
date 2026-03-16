@@ -157,7 +157,7 @@ export default function JobDetailPage() {
         </div>
       </div>
 
-      <section className="shell-panel">
+      <section className="wf-section">
         <div className="wf-top-grid">
           <div className="wf-job-title">{selectedJob.title}</div>
           <div className="wf-role-pill">{isBuyer ? 'Buyer View' : isSeller ? 'Seller View' : 'Observer'}</div>
@@ -166,7 +166,7 @@ export default function JobDetailPage() {
       </section>
 
       <div className="wf-layout">
-        <section className="shell-panel">
+        <section className="wf-section">
           <div className="wf-card-title-row">
             <div className="wf-card-title">Current Stage Actions</div>
             {stage === 'dispute' && <span className="status-pill status-pending">Dispute Open</span>}
@@ -418,7 +418,7 @@ export default function JobDetailPage() {
           )}
         </section>
 
-        <aside className="shell-panel">
+        <aside className="wf-section">
           <div className="wf-card-title" style={{ marginBottom: 12 }}>Job Summary</div>
           <div className="info-row"><span className="info-label">Category</span><span>{selectedJob.category}</span></div>
           <div className="info-row"><span className="info-label">Budget Cap</span><span>${Number(selectedJob.budget || 0).toLocaleString()}</span></div>

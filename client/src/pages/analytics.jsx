@@ -83,8 +83,8 @@ export default function AnalyticsPage() {
       <div className="section-title">Market <span>Analytics</span></div>
       <div className="dashboard-grid" style={{ marginBottom: 24 }}>
         <div className="dash-card"><div className="dash-card-label">Avg Bids per Request</div><div className="dash-card-value accent">{avgBidsPerRequest.toFixed(1)}</div></div>
-        <div className="dash-card"><div className="dash-card-label">Avg Price Drop</div><div className="dash-card-value green">{avgSavingsPercent.toFixed(1)}%</div><div className="dash-card-sub">below buyer budget cap</div></div>
-        <div className="dash-card"><div className="dash-card-label">Closed/Completed Jobs</div><div className="dash-card-value green">{closedOrCompleted}</div><div className="dash-card-sub">of {totalJobs} total jobs</div></div>
+        <div className="dash-card"><div className="dash-card-label">Avg Price Drop</div><div className="dash-card-value highlight">{avgSavingsPercent.toFixed(1)}%</div><div className="dash-card-sub">below buyer budget cap</div></div>
+        <div className="dash-card"><div className="dash-card-label">Closed/Completed Jobs</div><div className="dash-card-value highlight">{closedOrCompleted}</div><div className="dash-card-sub">of {totalJobs} total jobs</div></div>
         <div className="dash-card"><div className="dash-card-label">Closure Rate</div><div className="dash-card-value accent">{closureRate.toFixed(1)}%</div><div className="dash-card-sub">jobs resolved from marketplace</div></div>
       </div>
       <div className="analytics-grid">
@@ -98,12 +98,12 @@ export default function AnalyticsPage() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 16 }}>
           <div>
             <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Total Posted Budget</div>
-            <div style={{ fontSize: 36, fontFamily: "'Syne',sans-serif", fontWeight: 800 }}>${Number(marketStats?.savings?.totalBudget || 0).toLocaleString()}</div>
+            <div style={{ fontSize: 36, fontFamily: "'Geist Mono', monospace", fontWeight: 800 }}>${Number(marketStats?.savings?.totalBudget || 0).toLocaleString()}</div>
             <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 6 }}>closed/completed requests</div>
           </div>
           <div>
             <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Total Winning Bid Spend</div>
-            <div style={{ fontSize: 36, fontFamily: "'Syne',sans-serif", fontWeight: 800, color: "var(--green)" }}>${Number(marketStats?.savings?.totalSpent || 0).toLocaleString()}</div>
+            <div style={{ fontSize: 36, fontFamily: "'Geist Mono', monospace", fontWeight: 800, color: "var(--blue)" }}>${Number(marketStats?.savings?.totalSpent || 0).toLocaleString()}</div>
             <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 6 }}>Savings: ${Number(marketStats?.savings?.totalSavings || 0).toLocaleString()}</div>
           </div>
         </div>
