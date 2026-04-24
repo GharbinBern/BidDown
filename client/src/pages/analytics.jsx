@@ -98,12 +98,12 @@ export default function AnalyticsPage() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 16 }}>
           <div>
             <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Total Posted Budget</div>
-            <div style={{ fontSize: 36, fontFamily: "'Geist Mono', monospace", fontWeight: 800 }}>${Number(marketStats?.savings?.totalBudget || 0).toLocaleString()}</div>
+            <div style={{ fontSize: 36, fontFamily: "var(--font-mono)", fontWeight: 800 }}>${Number(marketStats?.savings?.totalBudget || 0).toLocaleString()}</div>
             <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 6 }}>closed/completed requests</div>
           </div>
           <div>
             <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Total Winning Bid Spend</div>
-            <div style={{ fontSize: 36, fontFamily: "'Geist Mono', monospace", fontWeight: 800, color: "var(--blue)" }}>${Number(marketStats?.savings?.totalSpent || 0).toLocaleString()}</div>
+            <div style={{ fontSize: 36, fontFamily: "var(--font-mono)", fontWeight: 800, color: "var(--blue)" }}>${Number(marketStats?.savings?.totalSpent || 0).toLocaleString()}</div>
             <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 6 }}>Savings: ${Number(marketStats?.savings?.totalSavings || 0).toLocaleString()}</div>
           </div>
         </div>

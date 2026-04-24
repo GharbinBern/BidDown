@@ -147,45 +147,43 @@ export default function DashboardPage() {
 
   return (
     <div className="main">
-      <div className="workspace-head">
-        <div>
-          <div className="section-title" style={{ marginBottom: 10 }}>Your <span>Space</span></div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+        <div style={{ fontSize: 16, fontWeight: 900, fontFamily: "'Syne', sans-serif" }}>
+          Dashboard
           {isBuyer && isSeller && (
-            <div className="sub-tabs" style={{ marginTop: 12, marginBottom: 0 }}>
+            <span style={{ marginLeft: 12, fontSize: 10, color: 'var(--muted)', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '1px' }}>
               <button
                 type="button"
-                className={`sub-tab ${roleMode === 'buyer' ? 'active' : ''}`}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 10, fontWeight: roleMode === 'buyer' ? 700 : 400, color: roleMode === 'buyer' ? 'var(--accent)' : 'var(--muted)', textDecoration: roleMode === 'buyer' ? 'underline' : 'none', textUnderlineOffset: '3px', textTransform: 'uppercase', letterSpacing: '1px' }}
                 onClick={() => setActiveRole('buyer')}
-              >
-                Buyer View
-              </button>
+              >Buying</button>
+              {' / '}
               <button
                 type="button"
-                className={`sub-tab ${roleMode === 'seller' ? 'active' : ''}`}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 10, fontWeight: roleMode === 'seller' ? 700 : 400, color: roleMode === 'seller' ? 'var(--accent)' : 'var(--muted)', textDecoration: roleMode === 'seller' ? 'underline' : 'none', textUnderlineOffset: '3px', textTransform: 'uppercase', letterSpacing: '1px' }}
                 onClick={() => setActiveRole('seller')}
-              >
-                Seller View
-              </button>
-            </div>
+              >Selling</button>
+            </span>
           )}
         </div>
       </div>
-      <div className="dashboard-grid">
-          {summaryRole === 'buyer' ? (
-            <>
-              <div className="dash-card"><div className="dash-card-label">Active Requests</div><div className="dash-card-value accent">{activeRequests}</div><div className="dash-card-sub">{receivingBids} receiving bids</div></div>
-              <div className="dash-card"><div className="dash-card-label">Total Saved</div><div className="dash-card-value highlight">${totalSaved.toLocaleString()}</div><div className="dash-card-sub">vs. budget cap on accepted bids</div></div>
-              <div className="dash-card"><div className="dash-card-label">Bids Submitted</div><div className="dash-card-value accent">{myBids.length}</div><div className="dash-card-sub">across active requests</div></div>
-              <div className="dash-card"><div className="dash-card-label">Avg Bid Reduction</div><div className="dash-card-value highlight">{avgReduction.toFixed(1)}%</div><div className="dash-card-sub">below your budget cap</div></div>
-            </>
-          ) : (
-            <>
-              <div className="dash-card"><div className="dash-card-label">Active Bids</div><div className="dash-card-value accent">{activeBids}</div><div className="dash-card-sub">still pending decision</div></div>
-              <div className="dash-card"><div className="dash-card-label">Bids Won</div><div className="dash-card-value highlight">{wonBids}</div><div className="dash-card-sub">accepted requests</div></div>
-              <div className="dash-card"><div className="dash-card-label">Bids Submitted</div><div className="dash-card-value accent">{submittedBids}</div><div className="dash-card-sub">total proposals sent</div></div>
-              <div className="dash-card"><div className="dash-card-label">Avg Bid Amount</div><div className="dash-card-value highlight">${avgBidAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div><div className="dash-card-sub">across your submitted bids</div></div>
-            </>
-          )}
+
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 16, fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+        {summaryRole === 'buyer' ? (
+          <>
+            <span>Active: <strong style={{ color: 'var(--text)', fontFamily: "'Syne', sans-serif", fontWeight: 800 }}>{activeRequests}</strong></span>
+            <span>Saved: <strong style={{ color: 'var(--text)', fontFamily: "'Syne', sans-serif", fontWeight: 800 }}>${totalSaved.toLocaleString()}</strong></span>
+            <span>Bids received: <strong style={{ color: 'var(--text)', fontFamily: "'Syne', sans-serif", fontWeight: 800 }}>{myBids.length}</strong></span>
+            <span>Avg reduction: <strong style={{ color: 'var(--text)', fontFamily: "'Syne', sans-serif", fontWeight: 800 }}>{avgReduction.toFixed(1)}%</strong></span>
+          </>
+        ) : (
+          <>
+            <span>Active: <strong style={{ color: 'var(--text)', fontFamily: "'Syne', sans-serif", fontWeight: 800 }}>{activeBids}</strong></span>
+            <span>Won: <strong style={{ color: 'var(--text)', fontFamily: "'Syne', sans-serif", fontWeight: 800 }}>{wonBids}</strong></span>
+            <span>Submitted: <strong style={{ color: 'var(--text)', fontFamily: "'Syne', sans-serif", fontWeight: 800 }}>{submittedBids}</strong></span>
+            <span>Avg bid: <strong style={{ color: 'var(--text)', fontFamily: "'Syne', sans-serif", fontWeight: 800 }}>${avgBidAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong></span>
+          </>
+        )}
       </div>
       <div className="sub-tabs">
         {tabs.map((t) => (
@@ -201,7 +199,7 @@ export default function DashboardPage() {
           <tbody>
             {myListings.map((l, i) => (
               <tr key={l._id || i}>
-                <td style={{ fontFamily: "'Geist Mono', monospace", fontWeight: 600 }}>{l.title}</td>
+                <td style={{ fontWeight: 600 }}>{l.title}</td>
                 <td><span className="listing-category">{l.category}</span></td>
                 <td style={{ color: "var(--accent)", fontWeight: 700 }}>${l.budget.toLocaleString()}</td>
                 <td>{l.bids_count || 0}</td>
@@ -291,7 +289,7 @@ export default function DashboardPage() {
           <tbody>
             {myBids.map((b, i) => (
               <tr key={b._id || i}>
-                <td style={{ fontFamily: "'Geist Mono', monospace", fontWeight: 600 }}>{b.job_id?.title || 'Request'}</td>
+                <td style={{ fontWeight: 600 }}>{b.job_id?.title || 'Request'}</td>
                 <td style={{ color: "var(--accent)", fontWeight: 700 }}>${b.amount.toLocaleString()}</td>
                 <td><span className={`status-pill ${mapStatusPill(b.status)}`}>{bidStatusLabel(b.status)}</span></td>
                 <td style={{ color: "var(--muted)" }}>{formatRelativeTime(b.createdAt)}</td>

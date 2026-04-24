@@ -5,7 +5,7 @@ import { Clock3, Search, Star, Tag, X } from 'lucide-react'
 import CustomDropdown from '../components/dropdown'
 import { useAuthStore, useBidsStore, useJobsStore, usePreferencesStore } from '../store'
 
-const CATEGORIES = ["All", "Design", "Development", "Marketing", "Writing", "Legal", "Consulting", "Other"]
+const CATEGORIES = ["All", "Home Repairs", "Tutoring", "Photography", "Cleaning", "Delivery", "Design & Print"]
 const FILTER_OPTIONS = CATEGORIES.map((category) => ({
   value: category,
   label: category,
@@ -22,6 +22,53 @@ const SORT_OPTIONS = [
   { value: 'budgetHigh', label: 'Budget: High To Low' },
   { value: 'budgetLow', label: 'Budget: Low To High' },
 ]
+
+const INTAKE_TEMPLATE_BY_CATEGORY = {
+  'Home Repairs': [
+    { key: 'location', label: 'Location', placeholder: 'Estate / suburb and city' },
+    { key: 'issue_type', label: 'Issue Type', placeholder: 'Plumbing, electrical, carpentry...' },
+    { key: 'access_window', label: 'Access Window', placeholder: 'Weekdays 9am-5pm' },
+  ],
+  Tutoring: [
+    { key: 'subject', label: 'Subject', placeholder: 'Mathematics, English, Science...' },
+    { key: 'level', label: 'Level', placeholder: 'Primary, JHS, SHS, Adult' },
+    { key: 'sessions_per_week', label: 'Sessions / Week', placeholder: '2' },
+  ],
+  Photography: [
+    { key: 'shoot_type', label: 'Shoot Type', placeholder: 'Graduation, wedding, product...' },
+    { key: 'event_date', label: 'Event Date', placeholder: '2026-05-30' },
+    { key: 'deliverables', label: 'Deliverables', placeholder: '80 edited images + album' },
+  ],
+  Cleaning: [
+    { key: 'property_size', label: 'Property Size', placeholder: '2-bedroom apartment' },
+    { key: 'frequency', label: 'Frequency', placeholder: 'One-time, weekly, monthly' },
+    { key: 'supplies_provided', label: 'Supplies Provided', placeholder: 'Yes / No' },
+  ],
+  Delivery: [
+    { key: 'pickup_location', label: 'Pickup Location', placeholder: 'Tema Community 1' },
+    { key: 'dropoff_location', label: 'Dropoff Location', placeholder: 'Adenta Housing' },
+    { key: 'load_type', label: 'Load Type', placeholder: 'Furniture, parcel, mixed' },
+  ],
+  'Design & Print': [
+    { key: 'asset_type', label: 'Asset Type', placeholder: 'Flyer, logo, banner...' },
+    { key: 'quantity', label: 'Quantity', placeholder: '200 copies' },
+    { key: 'print_deadline', label: 'Print Deadline', placeholder: 'Needed in 5 days' },
+  ],
+}
+
+const BID_TEMPLATE_BY_CATEGORY = {
+  'Home Repairs': 'Parts/tools plan or site inspection notes',
+  Tutoring: 'Teaching approach and lesson support style',
+  Photography: 'Shoot setup and editing approach',
+  Cleaning: 'Cleaning checklist and supplies method',
+  Delivery: 'Vehicle/load handling and routing approach',
+  'Design & Print': 'Design process and print prep details',
+}
+
+const buildInitialIntake = (category) => {
+  const fields = INTAKE_TEMPLATE_BY_CATEGORY[category] || []
+  return fields.reduce((acc, field) => ({ ...acc, [field.key]: '' }), {})
+}
 
 function formatRecordTime(value) {
   const date = new Date(value)
@@ -54,6 +101,12 @@ function ListingModal({ listing, onClose, onBid, onAcceptBid, onOpenWorkflow, us
   const [showBidForm, setShowBidForm] = useState(false)
   const [bidAmount, setBidAmount] = useState('')
   const [bidNote, setBidNote] = useState('')
+  const [bidTemplate, setBidTemplate] = useState({
+    timeline_days: '',
+    supervision_plan: '',
+    milestone_plan: '',
+    category_detail: '',
+  })
   const [formError, setFormError] = useState('')
   const userId = user?._id || user?.id
   const roles = user?.roles || []
@@ -70,7 +123,8 @@ function ListingModal({ listing, onClose, onBid, onAcceptBid, onOpenWorkflow, us
   const isWinningSeller = !!userId && !!winningSellerId && String(winningSellerId) === String(userId)
   const canOpenWorkflow = !!listing.winning_bid_id && (isOwner || isWinningSeller)
   const existingBidStatus = existingBid?.status
-  
+  const categoryDetailHint = BID_TEMPLATE_BY_CATEGORY[listing.category] || 'Category-specific delivery details'
+
   const sortedBids = [...(listing.bids || [])].sort((a, b) => a.amount - b.amount)
 
   const handleBidSubmit = () => {
@@ -89,11 +143,31 @@ function ListingModal({ listing, onClose, onBid, onAcceptBid, onOpenWorkflow, us
       return
     }
 
+    if (!bidTemplate.timeline_days || Number(bidTemplate.timeline_days) < 1) {
+      setFormError('Timeline must be at least 1 day.')
+      return
+    }
+
+    if (!bidTemplate.supervision_plan.trim() || !bidTemplate.milestone_plan.trim() || !bidTemplate.category_detail.trim()) {
+      setFormError('Please complete all proposal template fields.')
+      return
+    }
+
     setFormError('')
-    onBid({ amount: parsedAmount, note: bidNote.trim() })
+    onBid({
+      amount: parsedAmount,
+      note: bidNote.trim(),
+      proposal: {
+        timeline_days: Number(bidTemplate.timeline_days),
+        supervision_plan: bidTemplate.supervision_plan.trim(),
+        milestone_plan: bidTemplate.milestone_plan.trim(),
+        category_detail: bidTemplate.category_detail.trim(),
+      },
+    })
     setShowBidForm(false)
     setBidAmount('')
     setBidNote('')
+    setBidTemplate({ timeline_days: '', supervision_plan: '', milestone_plan: '', category_detail: '' })
   }
 
   return (
@@ -105,119 +179,214 @@ function ListingModal({ listing, onClose, onBid, onAcceptBid, onOpenWorkflow, us
             <X size={18} />
           </button>
         </div>
-        <div className="info-row"><span className="info-label">Category</span><span className="listing-category">{listing.category}</span></div>
-        <div className="info-row"><span className="info-label">Budget Cap</span><span style={{ color: "var(--accent)", fontWeight: 700, fontFamily: "'Geist Mono', monospace", fontSize: 18 }}>${listing.budget.toLocaleString()}</span></div>
-        <div className="info-row"><span className="info-label">Time Remaining</span><Timer hours={listing.hoursLeft} /></div>
-        <div className="info-row"><span className="info-label">Total Bids</span><span>{listing.bids_count || 0}</span></div>
-        <div style={{ margin: "16px 0", color: "var(--muted)", fontSize: 13, lineHeight: 1.7 }}>{listing.desc}</div>
-        <div style={{ fontFamily: "'Geist Mono', monospace", fontWeight: 700, fontSize: 14, marginBottom: 12, textAlign: isOwner ? 'left' : 'center' }}>
-          {isOwner ? "All Bids — Ranked Lowest First" : "Bids are sealed to non-owners"}
-        </div>
-        {isOwner ? (
-          <div className="bid-list">
-            {sortedBids.map((b, i) => (
-              <div key={b._id || i} className={`bid-item ${i === 0 ? "winner" : ""}`}>
-                <div className="bid-seller" style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingRight: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span>{b.seller_id?.name || 'Seller'}</span>
-                    {i === 0 && (
-                      <span style={{ color: "var(--blue)", fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        <Star size={12} strokeWidth={2} fill="currentColor" style={{ width: 12, height: 12, flex: '0 0 12px' }} /> LOWEST BID
-                      </span>
-                    )}
-                  </div>
-                  <small style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--muted)', lineHeight: 1.4 }}>
-                    <Star size={12} strokeWidth={2} fill="currentColor" style={{ width: 12, height: 12, flex: '0 0 12px' }} />
-                    <span>{b.seller_id?.average_rating || 5}</span>
-                    <span>•</span>
-                    <span>{b.note || 'No note'}</span>
-                  </small>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: 'auto', flexShrink: 0 }}>
-                  <div className={`bid-amount ${i === 0 ? "lowest" : ""}`}>${b.amount.toLocaleString()}</div>
-                  {canAcceptBid && b.status === 'pending' && (
-                    <button type="button" className="btn btn-success btn-sm" onClick={() => onAcceptBid(b._id)}>Accept</button>
-                  )}
-                </div>
-              </div>
-            ))}
-            {sortedBids.length === 0 && (
-              <div className="card" style={{ marginBottom: 12, color: 'var(--muted)', fontSize: 13 }}>
-                No bids yet for this request.
-              </div>
-            )}
-          </div>
-        ) : null}
-        {showBidForm && canSubmitBid && (
-          <div className="card" style={{ marginTop: 16, marginBottom: 12 }}>
-            <div className="form-group" style={{ marginBottom: 12 }}>
-              <label className="form-label">Your Bid Amount (USD)</label>
-              <input
-                className="form-input"
-                type="number"
-                min="50"
-                max={listing.budget}
-                value={bidAmount}
-                onChange={(e) => setBidAmount(e.target.value)}
-                placeholder={`Max $${listing.budget}`}
-              />
-            </div>
-            <div className="form-group" style={{ marginBottom: 8 }}>
-              <label className="form-label">Note (optional)</label>
-              <textarea
-                className="form-textarea"
-                value={bidNote}
-                onChange={(e) => setBidNote(e.target.value)}
-                placeholder="Timeline, deliverables, and assumptions"
-              />
-            </div>
-            {formError && <div style={{ color: 'var(--accent2)', fontSize: 13 }}>{formError}</div>}
-          </div>
-        )}
+        <div className="modal-body">
+          <div className="m-lot-num">{listing.category}</div>
+          <div className="m-desc">{listing.desc}</div>
 
-        {hasExistingBid && !isOwner && (
-          <div className="card" style={{ marginTop: 16, marginBottom: 12 }}>
-            <div style={{ fontFamily: "'Geist Mono', monospace", fontWeight: 700, fontSize: 14, marginBottom: 10 }}>
-              Your Submitted Bid
+          {listing.intake_details && Object.keys(listing.intake_details).length > 0 ? (
+            <div className="m-bid-box" style={{ marginTop: 0 }}>
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--muted)', marginBottom: 8 }}>
+                Buyer intake requirements
+              </div>
+              {Object.entries(listing.intake_details).map(([key, value]) => (
+                <div key={key} style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>
+                  <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{key.replaceAll('_', ' ')}:</strong> {String(value)}
+                </div>
+              ))}
             </div>
-            <div className="info-row"><span className="info-label">Amount</span><span style={{ color: 'var(--accent)', fontWeight: 700 }}>${Number(existingBid.amount).toLocaleString()}</span></div>
-            <div className="info-row"><span className="info-label">Status</span><span className={`status-pill ${existingBid.status === 'accepted' ? 'status-closed' : existingBid.status === 'rejected' ? 'status-pending' : 'status-open'}`}>{existingBid.status}</span></div>
-            <div className="info-row"><span className="info-label">Submitted</span><span>{formatRecordTime(existingBid.createdAt)}</span></div>
-            <div style={{ marginTop: 10, color: 'var(--muted)', fontSize: 13 }}>{existingBid.note || 'No note was included with your bid.'}</div>
-            {existingBidStatus === 'accepted' && (
-              <div style={{ marginTop: 10, color: 'var(--blue)', fontSize: 12 }}>
-                You won this request. Next step: coordinate delivery details with the buyer.
-              </div>
-            )}
-            {existingBidStatus === 'rejected' && (
-              <div style={{ marginTop: 10, color: 'var(--accent2)', fontSize: 12 }}>
-                Another seller was selected for this request.
-              </div>
-            )}
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-          {canOpenWorkflow && (
-            <button type="button" className="btn btn-primary" onClick={() => onOpenWorkflow(listing._id)}>
-              Open Workflow
-            </button>
-          )}
-          {canSubmitBid ? (
-            showBidForm ? (
-              <>
-                <button type="button" className="btn btn-primary" style={{ flex: 1 }} onClick={handleBidSubmit}>Place Bid</button>
-                <button type="button" className="btn btn-ghost" onClick={() => { setShowBidForm(false); setFormError('') }}>Cancel</button>
-              </>
-            ) : (
-              <button type="button" className="btn btn-primary" style={{ flex: 1 }} onClick={() => setShowBidForm(true)}>Submit a Bid</button>
-            )
-          ) : hasExistingBid && !isOwner ? (
-            <button type="button" className="btn btn-ghost" style={{ flex: 1 }} disabled>
-              {`Bid Submitted: $${Number(existingBid.amount).toLocaleString()} (${existingBid.status})`}
-            </button>
           ) : null}
-          <button type="button" className="btn btn-ghost" onClick={onClose}>Close</button>
+
+          <div className="m-bid-box">
+            <div className="m-bid-row">
+              <span className="m-bid-label">Budget Cap</span>
+              <span className="m-bid-val">${listing.budget.toLocaleString()}</span>
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--muted)' }}>
+              {listing.bids_count || 0} bids · {listing.hoursLeft > 0 ? `${listing.hoursLeft}h remaining` : 'Ended'}
+            </div>
+          </div>
+
+          <div className="m-stats">
+            <div className="m-stat">
+              <div className="m-stat-val">{listing.bids_count || 0}</div>
+              <div className="m-stat-label">Total Bids</div>
+            </div>
+            <div className="m-stat">
+              <div className="m-stat-val" style={{ color: 'var(--accent)' }}>${listing.budget.toLocaleString()}</div>
+              <div className="m-stat-label">Budget</div>
+            </div>
+            <div className="m-stat">
+              <div className="m-stat-val">{listing.hoursLeft > 0 ? `${listing.hoursLeft}h` : '—'}</div>
+              <div className="m-stat-label">Remaining</div>
+            </div>
+          </div>
+
+          {isOwner ? (
+            <>
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--muted)', marginBottom: 10 }}>
+                All Bids — Ranked Lowest First
+              </div>
+              <div className="bid-list">
+                {sortedBids.map((b, i) => (
+                  <div key={b._id || i} className={`bid-item ${i === 0 ? "winner" : ""}`}>
+                    <div className="bid-seller">
+                      <span>{b.seller_id?.name || 'Seller'}</span>
+                      {i === 0 && (
+                        <span style={{ fontSize: 9, color: 'var(--green)', marginLeft: 6, textTransform: 'uppercase', letterSpacing: '1px' }}>Lowest</span>
+                      )}
+                      <small>{'★'.repeat(Math.round(b.seller_id?.average_rating || 5))} {b.seller_id?.average_rating || 5} · {b.note || 'No note'}</small>
+                      {b.proposal?.timeline_days ? (
+                        <small>
+                          {`${b.proposal.timeline_days}d · ${b.proposal.supervision_plan || 'No supervision plan'} · ${b.proposal.category_detail || 'No category details'}`}
+                        </small>
+                      ) : null}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <div className={`bid-amount ${i === 0 ? "lowest" : ""}`}>${b.amount.toLocaleString()}</div>
+                      {canAcceptBid && b.status === 'pending' && (
+                        <button type="button" className="accept-btn" onClick={() => onAcceptBid(b._id)}>Accept</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {sortedBids.length === 0 && (
+                  <div style={{ color: 'var(--muted)', fontSize: 12, padding: '12px 0' }}>No bids yet for this request.</div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="sealed-note">
+              Sealed-bid auction — sellers cannot see each other's bids. Your bid will be ranked once submitted.
+            </div>
+          )}
+
+          {hasExistingBid && !isOwner && (
+            <div className="m-bid-box" style={{ marginTop: 8 }}>
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--muted)', marginBottom: 8 }}>Your Submitted Bid</div>
+              <div className="m-bid-row">
+                <span className="m-bid-label">Amount</span>
+                <span className="m-bid-val" style={{ fontSize: 20 }}>${Number(existingBid.amount).toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--muted)', marginTop: 6 }}>
+                <span>Status: <span className={`status-pill ${existingBid.status === 'accepted' ? 'status-closed' : existingBid.status === 'rejected' ? 'status-pending' : 'status-open'}`}>{existingBid.status}</span></span>
+                <span>{formatRecordTime(existingBid.createdAt)}</span>
+              </div>
+              {existingBid.note && <div style={{ marginTop: 8, fontSize: 11, color: 'var(--muted)' }}>{existingBid.note}</div>}
+              {existingBid.proposal?.timeline_days ? (
+                <div style={{ marginTop: 8, fontSize: 11, color: 'var(--muted)' }}>
+                  {`Timeline: ${existingBid.proposal.timeline_days} days`}
+                  <br />
+                  {`Supervision: ${existingBid.proposal.supervision_plan}`}
+                  <br />
+                  {`Milestones: ${existingBid.proposal.milestone_plan}`}
+                </div>
+              ) : null}
+              {existingBidStatus === 'accepted' && (
+                <div style={{ marginTop: 8, fontSize: 11, color: 'var(--green)' }}>You won this request.</div>
+              )}
+              {existingBidStatus === 'rejected' && (
+                <div style={{ marginTop: 8, fontSize: 11, color: 'var(--accent2)' }}>Another seller was selected.</div>
+              )}
+            </div>
+          )}
+
+          {showBidForm && canSubmitBid && (
+            <div style={{ marginTop: 14 }}>
+              <div className="form-group" style={{ marginBottom: 10 }}>
+                <label className="form-label">Your Bid (USD)</label>
+                <input
+                  className="form-input"
+                  type="number"
+                  min="50"
+                  max={listing.budget}
+                  value={bidAmount}
+                  onChange={(e) => setBidAmount(e.target.value)}
+                  placeholder={`Max $${listing.budget}`}
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: 8 }}>
+                <label className="form-label">Note (optional)</label>
+                <textarea
+                  className="form-textarea"
+                  value={bidNote}
+                  onChange={(e) => setBidNote(e.target.value)}
+                  placeholder="Timeline, deliverables, assumptions"
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: 8 }}>
+                <label className="form-label">Timeline (Days)</label>
+                <input
+                  className="form-input"
+                  type="number"
+                  min="1"
+                  value={bidTemplate.timeline_days}
+                  onChange={(e) => setBidTemplate((prev) => ({ ...prev, timeline_days: e.target.value }))}
+                  placeholder="3"
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: 8 }}>
+                <label className="form-label">Supervision Plan</label>
+                <textarea
+                  className="form-textarea"
+                  value={bidTemplate.supervision_plan}
+                  onChange={(e) => setBidTemplate((prev) => ({ ...prev, supervision_plan: e.target.value }))}
+                  placeholder="How you will manage quality and updates"
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: 8 }}>
+                <label className="form-label">Milestone Plan</label>
+                <textarea
+                  className="form-textarea"
+                  value={bidTemplate.milestone_plan}
+                  onChange={(e) => setBidTemplate((prev) => ({ ...prev, milestone_plan: e.target.value }))}
+                  placeholder="Breakdown of delivery milestones"
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: 8 }}>
+                <label className="form-label">{categoryDetailHint}</label>
+                <textarea
+                  className="form-textarea"
+                  value={bidTemplate.category_detail}
+                  onChange={(e) => setBidTemplate((prev) => ({ ...prev, category_detail: e.target.value }))}
+                  placeholder={categoryDetailHint}
+                />
+              </div>
+              {formError && <div style={{ color: 'var(--accent2)', fontSize: 12, marginBottom: 8 }}>{formError}</div>}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            {canOpenWorkflow && (
+              <button type="button" className="btn btn-primary" onClick={() => onOpenWorkflow(listing._id)}>
+                Open Workflow
+              </button>
+            )}
+            {canSubmitBid ? (
+              showBidForm ? (
+                <>
+                  <button type="button" className="btn btn-primary" style={{ flex: 1 }} onClick={handleBidSubmit}>Place Bid</button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => {
+                      setShowBidForm(false)
+                      setFormError('')
+                      setBidTemplate({ timeline_days: '', supervision_plan: '', milestone_plan: '', category_detail: '' })
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="btn btn-primary" style={{ flex: 1 }} onClick={() => setShowBidForm(true)}>Submit a Bid</button>
+              )
+            ) : hasExistingBid && !isOwner ? (
+              <button type="button" className="btn btn-ghost" style={{ flex: 1 }} disabled>
+                {`Bid Submitted: $${Number(existingBid.amount).toLocaleString()} (${existingBid.status})`}
+              </button>
+            ) : null}
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Close</button>
+          </div>
         </div>
       </div>
     </div>
@@ -243,9 +412,10 @@ export default function MarketplacePage() {
   const [newRequest, setNewRequest] = useState({
     title: '',
     description: '',
-    category: 'Design',
+    category: 'Home Repairs',
     budget: '',
     daysUntilDeadline: 7,
+    intake_details: buildInitialIntake('Home Repairs'),
   })
 
   const roles = user?.roles || []
@@ -382,10 +552,10 @@ export default function MarketplacePage() {
     }
   }
 
-  const handleBidSubmit = async ({ amount, note }) => {
+  const handleBidSubmit = async ({ amount, note, proposal }) => {
     if (!selectedJobId) return
     try {
-      await submitBid({ job_id: selectedJobId, amount, note })
+      await submitBid({ job_id: selectedJobId, amount, note, proposal })
       toast.success('Bid submitted')
       await Promise.all([
         fetchJobs({ status: 'open', limit: 100 }),
@@ -427,6 +597,15 @@ export default function MarketplacePage() {
       return
     }
 
+    const intakeFields = INTAKE_TEMPLATE_BY_CATEGORY[newRequest.category] || []
+    for (const field of intakeFields) {
+      const value = String(newRequest.intake_details?.[field.key] || '').trim()
+      if (!value) {
+        toast.error(`${field.label} is required for ${newRequest.category}`)
+        return
+      }
+    }
+
     const deadline = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
 
     setPosting(true)
@@ -437,15 +616,17 @@ export default function MarketplacePage() {
         category: newRequest.category,
         budget,
         deadline,
+        intake_details: newRequest.intake_details,
       })
       toast.success('Request posted')
       setShowPostForm(false)
       setNewRequest({
         title: '',
         description: '',
-        category: 'Design',
+        category: 'Home Repairs',
         budget: '',
         daysUntilDeadline: 7,
+        intake_details: buildInitialIntake('Home Repairs'),
       })
       await fetchJobs({ status: 'open', limit: 100 })
     } catch (error) {
@@ -507,27 +688,36 @@ export default function MarketplacePage() {
                   style={{ animationDelay: `${Math.min(idx, 8) * 55}ms` }}
                   onClick={() => openListing(l._id)}
                 >
-                  <div className="listing-header">
-                    <span className="listing-category">{l.category}</span>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      {isMyListing && <span className="status-pill status-open">Your Request</span>}
-                      <span className="listing-bids"><strong>{l.bids_count || 0}</strong> bids</span>
+                  <div className="lot-num">
+                    <span>{l.category}</span>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      {isMyListing && <span className="status-pill status-open">Mine</span>}
+                      {l.urgent && <span className="signal-pill danger">Urgent</span>}
+                      {l.isFresh && <span className="signal-pill success">New</span>}
+                      {myBidStatus === 'accepted' && <span className="signal-pill success">Won</span>}
+                      {myBidStatus === 'rejected' && <span className="signal-pill danger">Lost</span>}
                     </div>
                   </div>
-                  <div className="listing-signals">
-                    {l.urgent && <span className="signal-pill danger">Ending Soon</span>}
-                    {l.isFresh && <span className="signal-pill success">New</span>}
-                    {myBidStatus === 'accepted' && <span className="signal-pill success">You Won</span>}
-                    {myBidStatus === 'rejected' && <span className="signal-pill danger">Not Selected</span>}
-                  </div>
-                  <div className="listing-title">{l.title}</div>
-                  <div className="listing-desc">{l.desc.length > 100 ? `${l.desc.substring(0, 100)}...` : l.desc}</div>
-                  <div className="listing-footer">
-                    <div>
-                      <div className="budget-label">Budget Cap</div>
-                      <div className="budget-amount">${l.budget.toLocaleString()} <span>max</span></div>
+                  <div className="lot-body">
+                    <div className="listing-title">{l.title}</div>
+                    <div className="listing-desc">{l.desc.length > 80 ? `${l.desc.substring(0, 80)}…` : l.desc}</div>
+                    <div className="lot-bid-section">
+                      <div className="lot-bid-row">
+                        <div>
+                          <div className="lot-bid-label">Budget Cap</div>
+                          <div className="lot-bid-amount">${l.budget.toLocaleString()}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div className="bid-count"><strong>{l.bids_count || 0}</strong> bids</div>
+                        </div>
+                      </div>
                     </div>
+                  </div>
+                  <div className="lot-timer">
                     <Timer hours={l.hoursLeft} />
+                  </div>
+                  <div className="lot-action">
+                    <button className="bid-btn" onClick={(e) => { e.stopPropagation(); openListing(l._id) }}>Bid Now</button>
                   </div>
                 </div>
               )
@@ -592,6 +782,7 @@ export default function MarketplacePage() {
                 <X size={18} />
               </button>
             </div>
+            <div className="modal-body">
 
             <div className="form-group">
               <label className="form-label">Title</label>
@@ -619,7 +810,11 @@ export default function MarketplacePage() {
                 <CustomDropdown
                   options={REQUEST_CATEGORY_OPTIONS}
                   value={newRequest.category}
-                  onChange={(category) => setNewRequest((prev) => ({ ...prev, category }))}
+                  onChange={(category) => setNewRequest((prev) => ({
+                    ...prev,
+                    category,
+                    intake_details: buildInitialIntake(category),
+                  }))}
                   className="form-dropdown"
                   buttonClassName="form-dropdown-trigger"
                   menuClassName="form-dropdown-menu"
@@ -652,13 +847,37 @@ export default function MarketplacePage() {
               />
             </div>
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+            <div style={{ border: '1px solid var(--border)', padding: 10, marginBottom: 10, background: 'var(--bg)' }}>
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '1.2px', color: 'var(--muted)', marginBottom: 8 }}>
+                Required Intake Details ({newRequest.category})
+              </div>
+              {(INTAKE_TEMPLATE_BY_CATEGORY[newRequest.category] || []).map((field) => (
+                <div className="form-group" style={{ marginBottom: 8 }} key={field.key}>
+                  <label className="form-label">{field.label}</label>
+                  <input
+                    className="form-input"
+                    value={newRequest.intake_details?.[field.key] || ''}
+                    onChange={(e) => setNewRequest((prev) => ({
+                      ...prev,
+                      intake_details: {
+                        ...(prev.intake_details || {}),
+                        [field.key]: e.target.value,
+                      },
+                    }))}
+                    placeholder={field.placeholder}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button type="button" className="btn btn-primary" style={{ flex: 1 }} onClick={handlePostRequest} disabled={posting}>
                 {posting ? 'Posting...' : 'Post Request'}
               </button>
               <button type="button" className="btn btn-ghost" onClick={() => setShowPostForm(false)}>
                 Cancel
               </button>
+            </div>
             </div>
           </div>
         </div>

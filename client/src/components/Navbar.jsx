@@ -8,25 +8,23 @@ export default function Navbar() {
   const isActive = (path) => location.pathname === path
 
   return (
-    <nav className="bg-white/90 backdrop-blur border-b border-blue-100 sticky top-0 z-50">
+    <nav className="bg-stone-900 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-accent">Bid</span>
-            <span className="text-2xl font-bold text-slate-900">Down</span>
+        <div className="flex justify-between items-center h-13">
+          <Link to="/" className="flex items-center gap-1">
+            <span className="text-lg font-bold text-green-500">Bid</span>
+            <span className="text-lg font-bold text-white">Down</span>
           </Link>
 
-          {/* Navigation */}
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-6">
             {isAuthenticated && (
-              <div className="flex gap-6">
+              <div className="flex gap-4">
                 <Link
                   to="/marketplace"
                   className={`text-sm font-medium transition-colors ${
                     isActive('/marketplace')
-                      ? 'text-accent'
-                      : 'text-slate-500 hover:text-slate-900'
+                      ? 'text-white'
+                      : 'text-stone-400 hover:text-white'
                   }`}
                 >
                   Marketplace
@@ -35,8 +33,8 @@ export default function Navbar() {
                   to="/dashboard"
                   className={`text-sm font-medium transition-colors ${
                     isActive('/dashboard')
-                      ? 'text-accent'
-                      : 'text-slate-500 hover:text-slate-900'
+                      ? 'text-white'
+                      : 'text-stone-400 hover:text-white'
                   }`}
                 >
                   My Space
@@ -44,10 +42,9 @@ export default function Navbar() {
               </div>
             )}
 
-            {/* Auth buttons */}
             {isAuthenticated ? (
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-slate-600">{user?.name}</span>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-stone-300">{user?.name}</span>
                 <button
                   onClick={logout}
                   className="btn-ghost btn-sm"
@@ -56,8 +53,8 @@ export default function Navbar() {
                 </button>
               </div>
             ) : (
-              <div className="flex gap-4">
-                <Link to="/login" className="btn-ghost btn-sm">
+              <div className="flex gap-3">
+                <Link to="/login" className="text-sm text-stone-400 hover:text-white transition-colors">
                   Sign In
                 </Link>
                 <Link to="/register" className="btn-primary btn-sm">

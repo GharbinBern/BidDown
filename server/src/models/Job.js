@@ -12,8 +12,12 @@ const jobSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['Design', 'Development', 'Marketing', 'Writing', 'Legal', 'Consulting', 'Other'],
-    default: 'Other',
+    enum: ['Home Repairs', 'Tutoring', 'Photography', 'Cleaning', 'Delivery', 'Design & Print'],
+    default: 'Home Repairs',
+  },
+  intake_details: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {},
   },
 
   // Budget & Timeline

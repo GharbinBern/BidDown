@@ -6,6 +6,15 @@ import User from '../models/User.js';
 import { authMiddleware, optionalAuth } from '../middleware/auth.js';
 
 const router = express.Router();
+const ALLOWED_CATEGORIES = ['Home Repairs', 'Tutoring', 'Photography', 'Cleaning', 'Delivery', 'Design & Print'];
+const INTAKE_FIELDS_BY_CATEGORY = {
+  'Home Repairs': ['location', 'issue_type', 'access_window'],
+  Tutoring: ['subject', 'level', 'sessions_per_week'],
+  Photography: ['shoot_type', 'event_date', 'deliverables'],
+  Cleaning: ['property_size', 'frequency', 'supplies_provided'],
+  Delivery: ['pickup_location', 'dropoff_location', 'load_type'],
+  'Design & Print': ['asset_type', 'quantity', 'print_deadline'],
+};
 
 const REVIEW_WINDOW_HOURS = 48;
 
@@ -85,8 +94,25 @@ router.post('/', authMiddleware, [
   body('title').notEmpty(),
   body('description').notEmpty(),
   body('budget').isNumeric({ min: 50 }),
-  body('category').isIn(['Design', 'Development', 'Marketing', 'Writing', 'Legal', 'Consulting', 'Other']),
+  body('category').isIn(ALLOWED_CATEGORIES),
   body('deadline').isISO8601(),
+  body('intake_details').custom((value, { req }) => {
+    const category = req.body.category;
+    const required = INTAKE_FIELDS_BY_CATEGORY[category] || [];
+    if (typeof value !== 'object' || value === null) {
+      throw new Error('intake_details must be an object');
+    }
+
+    for (const field of required) {
+      const raw = value[field];
+      const safe = String(raw ?? '').trim();
+      if (!safe) {
+        throw new Error(`Missing intake field: ${field}`);
+      }
+    }
+
+    return true;
+  }),
 ], async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -94,13 +120,14 @@ router.post('/', authMiddleware, [
   }
 
   try {
-    const { title, description, budget, category, deadline } = req.body;
+    const { title, description, budget, category, deadline, intake_details } = req.body;
 
     const job = new Job({
       title,
       description,
       budget,
       category,
+      intake_details,
       deadline: new Date(deadline),
       owner_id: req.userId,
       sealed_until: new Date(deadline),
@@ -122,7 +149,7 @@ router.post('/', authMiddleware, [
 
 // List jobs with filters
 router.get('/', optionalAuth, [
-  query('category').optional().isIn(['Design', 'Development', 'Marketing', 'Writing', 'Legal', 'Consulting', 'Other']),
+  query('category').optional().isIn(ALLOWED_CATEGORIES),
   query('status').optional().isIn(['open', 'closed', 'completed']),
   query('page').optional().isInt({ min: 1 }),
   query('limit').optional().isInt({ min: 1, max: 100 }),

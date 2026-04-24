@@ -23,6 +23,24 @@ const bidSchema = new mongoose.Schema({
     type: String,
     maxlength: 1000,
   },
+  proposal: {
+    timeline_days: {
+      type: Number,
+      min: 1,
+    },
+    supervision_plan: {
+      type: String,
+      maxlength: 500,
+    },
+    milestone_plan: {
+      type: String,
+      maxlength: 800,
+    },
+    category_detail: {
+      type: String,
+      maxlength: 500,
+    },
+  },
 
   // Sealed Until Job Deadline
   sealed: {

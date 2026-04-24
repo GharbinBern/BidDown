@@ -13,7 +13,7 @@ const BUYER_COUNT = 8;
 const SELLER_COUNT = 8;
 const JOB_COUNT = 50;
 
-const CATEGORIES = ['Design', 'Development', 'Marketing', 'Writing', 'Legal', 'Consulting', 'Other'];
+const CATEGORIES = ['Home Repairs', 'Tutoring', 'Photography', 'Cleaning', 'Delivery', 'Design & Print'];
 
 const BUYER_NAMES = [
   'Bella Buyer',
@@ -37,41 +37,120 @@ const SELLER_NAMES = [
   'Owen Hart',
 ];
 
-const TITLE_PREFIXES = [
-  'Landing Page',
-  'Mobile App',
-  'SEO Strategy',
-  'Brand Kit',
-  'Dashboard Build',
-  'Content Plan',
-  'Legal Drafting',
-  'GTM Consulting',
-  'Web Redesign',
-  'Campaign Setup',
-];
-
-const TITLE_SUFFIXES = [
-  'for Fintech Startup',
-  'for E-commerce Platform',
-  'for Healthcare Product',
-  'for SaaS Launch',
-  'for Creator Marketplace',
-  'for Logistics Tool',
-  'for Analytics Team',
-  'for Education App',
-  'for Travel Product',
-  'for AI Workflow',
-];
+const CATEGORY_TEMPLATES = {
+  'Home Repairs': [
+    {
+      title: 'Fix leaking overhead tank and replace float valve',
+      description: 'Overhead tank has been dripping for two weeks. Need diagnostics, valve replacement, and a leak test before handoff.',
+      budgetRange: [250, 950],
+    },
+    {
+      title: 'Repair cracked wall and repaint one bedroom',
+      description: 'Need crack filling, sanding, and repainting with clean finish. Please include materials and labor in quote.',
+      budgetRange: [400, 1400],
+    },
+    {
+      title: 'Service split AC and fix weak cooling issue',
+      description: 'Bedroom unit is not cooling properly. Requesting inspection, cleaning, and any minor repairs.',
+      budgetRange: [300, 1100],
+    },
+  ],
+  Tutoring: [
+    {
+      title: 'WASSCE elective mathematics tutoring - 4 sessions',
+      description: 'Form 3 student needs focused prep on sequences, series, and vectors with weekly practice sets.',
+      budgetRange: [300, 1200],
+    },
+    {
+      title: 'Primary reading support for Grade 4 learner',
+      description: 'Need patient tutor for comprehension and vocabulary improvement, twice a week for one month.',
+      budgetRange: [250, 900],
+    },
+    {
+      title: 'Python fundamentals coaching for beginner',
+      description: 'Need practical beginner lessons on variables, loops, functions, and mini project guidance.',
+      budgetRange: [400, 1500],
+    },
+  ],
+  Photography: [
+    {
+      title: 'Outdoor graduation shoot with edited album',
+      description: 'Two-hour outdoor shoot for graduation portraits, edited photos delivered within five days.',
+      budgetRange: [500, 1800],
+    },
+    {
+      title: 'Product photos for small online store launch',
+      description: 'Need clean product images on white background for about 25 items and basic retouching.',
+      budgetRange: [700, 2400],
+    },
+    {
+      title: 'Corporate headshots for 12-person team',
+      description: 'On-site headshots with basic lighting setup and color-corrected edits for company profiles.',
+      budgetRange: [900, 3000],
+    },
+  ],
+  Cleaning: [
+    {
+      title: 'Deep clean 3-bedroom apartment before move-in',
+      description: 'Need full apartment cleaning including kitchen degreasing, bathrooms, windows, and floors.',
+      budgetRange: [300, 1200],
+    },
+    {
+      title: 'Weekly office cleaning for shared workspace',
+      description: 'Three-room office needs recurring cleaning every weekend including washrooms and glass doors.',
+      budgetRange: [500, 1800],
+    },
+    {
+      title: 'Post-renovation cleanup for living area',
+      description: 'Need dust and debris cleanup after minor renovation. Includes floor polish and disposal support.',
+      budgetRange: [350, 1300],
+    },
+  ],
+  Delivery: [
+    {
+      title: 'Move furniture from Tema to Adenta',
+      description: 'Need pickup truck and two helpers to move bed frame, wardrobe, and fridge in one trip.',
+      budgetRange: [500, 2000],
+    },
+    {
+      title: 'Same-day parcel delivery for 15 customer orders',
+      description: 'Need reliable rider support for same-day deliveries within Accra with proof-of-delivery updates.',
+      budgetRange: [350, 1400],
+    },
+    {
+      title: 'Event logistics pickup and return support',
+      description: 'Need van delivery for event items in the morning and return pickup by evening.',
+      budgetRange: [450, 1700],
+    },
+  ],
+  'Design & Print': [
+    {
+      title: 'Logo and business card design for tailoring shop',
+      description: 'Need modern logo concepts, final business card layout, and print-ready files in CMYK format.',
+      budgetRange: [450, 1800],
+    },
+    {
+      title: 'Flyer and roll-up banner for church conference',
+      description: 'Need event flyer plus one roll-up banner design with ready-to-print outputs and source files.',
+      budgetRange: [500, 1900],
+    },
+    {
+      title: 'Menu redesign and print setup for cafe relaunch',
+      description: 'Need refreshed menu design and print setup for table menus and wall poster versions.',
+      budgetRange: [600, 2100],
+    },
+  ],
+};
 
 const SELLER_BIOS = [
-  'UI/UX specialist focused on conversion-friendly interfaces.',
-  'Full-stack engineer experienced in React and Node.',
-  'Growth marketer with SEO and paid media background.',
-  'Legal content writer for digital products and compliance.',
-  'Brand and visual identity designer for startups.',
-  'Product consultant for launches and pricing strategy.',
-  'Content strategist for technical and B2B audiences.',
-  'Automation builder for internal tools and operations.',
+  'Certified technician for plumbing and minor electrical repair jobs.',
+  'Patient tutor focused on exam prep and confidence-building study routines.',
+  'Event and portrait photographer with fast editing turnaround.',
+  'Experienced residential and office cleaning service lead.',
+  'Local delivery specialist for parcel, moving, and logistics support.',
+  'Brand designer producing print-ready visual assets for SMEs.',
+  'Skilled handyman for household maintenance and appliance servicing.',
+  'Creative print designer for flyers, banners, and promo materials.',
 ];
 
 function randomInt(min, max) {
@@ -104,19 +183,84 @@ function pickUnique(list, count) {
   return picked;
 }
 
-function makeJobTitleCombinations() {
-  const combos = [];
-  for (const prefix of TITLE_PREFIXES) {
-    for (const suffix of TITLE_SUFFIXES) {
-      combos.push(`${prefix} ${suffix}`);
-    }
-  }
-  return shuffle(combos);
+function randomBudgetForCategory(category) {
+  const templates = CATEGORY_TEMPLATES[category] || [];
+  if (!templates.length) return randomInt(300, 2500);
+  const selected = randomFrom(templates);
+  return randomInt(selected.budgetRange[0], selected.budgetRange[1]);
 }
 
-function makeJobDescription(title, category) {
-  const lowerTitle = title.toLowerCase();
-  return `Need help with ${lowerTitle}. Please include a clear scope, timeline milestones, and final handoff notes tailored to this ${category.toLowerCase()} request.`;
+function randomTemplateForCategory(category) {
+  const templates = CATEGORY_TEMPLATES[category] || [];
+  if (!templates.length) {
+    return {
+      title: `${category} service request`,
+      description: `Need a verified provider for ${category.toLowerCase()} with clear timeline and deliverables.`,
+      budgetRange: [300, 2500],
+    };
+  }
+  return randomFrom(templates);
+}
+
+function sampleIntakeDetails(category) {
+  switch (category) {
+    case 'Home Repairs':
+      return {
+        location: randomFrom(['East Legon, Accra', 'Tema Community 7', 'Adenta, Accra']),
+        issue_type: randomFrom(['Plumbing', 'Electrical', 'Carpentry']),
+        access_window: randomFrom(['Weekdays 9am-5pm', 'Saturday morning', 'Any day after 2pm']),
+      };
+    case 'Tutoring':
+      return {
+        subject: randomFrom(['Mathematics', 'English', 'Integrated Science']),
+        level: randomFrom(['Primary', 'JHS', 'SHS']),
+        sessions_per_week: String(randomInt(1, 4)),
+      };
+    case 'Photography':
+      return {
+        shoot_type: randomFrom(['Graduation', 'Product', 'Corporate']),
+        event_date: new Date(Date.now() + randomInt(3, 21) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        deliverables: randomFrom(['50 edited photos', '100 edited photos + album', 'Web + print export']),
+      };
+    case 'Cleaning':
+      return {
+        property_size: randomFrom(['2-bedroom apartment', '3-bedroom house', 'Small office']),
+        frequency: randomFrom(['One-time', 'Weekly', 'Bi-weekly']),
+        supplies_provided: randomFrom(['Yes', 'No']),
+      };
+    case 'Delivery':
+      return {
+        pickup_location: randomFrom(['Tema', 'Spintex', 'Asokwa']),
+        dropoff_location: randomFrom(['Adenta', 'Labone', 'KNUST area']),
+        load_type: randomFrom(['Furniture', 'Parcels', 'Mixed household items']),
+      };
+    case 'Design & Print':
+      return {
+        asset_type: randomFrom(['Flyer', 'Logo + cards', 'Banner + poster']),
+        quantity: randomFrom(['200 copies', '500 copies', '1000 copies']),
+        print_deadline: randomFrom(['3 days', '5 days', '7 days']),
+      };
+    default:
+      return {};
+  }
+}
+
+function sampleBidProposal(category) {
+  const detailByCategory = {
+    'Home Repairs': randomFrom(['Tools and parts included', 'Site inspection and parts sourcing included']),
+    Tutoring: randomFrom(['Weekly quiz tracking', 'Personalized lesson plan with mock tests']),
+    Photography: randomFrom(['Lighting setup and color correction included', 'RAW capture with edited gallery delivery']),
+    Cleaning: randomFrom(['Detailed room-by-room checklist', 'Eco-friendly products and sanitization workflow']),
+    Delivery: randomFrom(['Live delivery updates and proof of delivery', 'Protective handling and route optimization']),
+    'Design & Print': randomFrom(['Concept drafts plus print-ready files', 'Brand-consistent layout with CMYK setup']),
+  };
+
+  return {
+    timeline_days: randomInt(1, 10),
+    supervision_plan: randomFrom(['Daily WhatsApp updates', 'Milestone check-ins every 2 days', 'Before/after proof at each stage']),
+    milestone_plan: randomFrom(['Kickoff, draft, final handoff', 'Inspection, execution, QA, handoff', 'Week 1 draft, week 2 revisions, final delivery']),
+    category_detail: detailByCategory[category] || 'Category delivery details provided',
+  };
 }
 
 async function createUsers() {
@@ -160,20 +304,21 @@ async function createUsers() {
 function createJobDocs(buyers) {
   const now = Date.now();
   const jobs = [];
-  const titlePool = makeJobTitleCombinations();
 
   for (let i = 0; i < JOB_COUNT; i += 1) {
     const owner = randomFrom(buyers);
     const category = randomFrom(CATEGORIES);
-    const title = titlePool[i % titlePool.length];
-    const budget = randomInt(300, 6000);
+    const sample = randomTemplateForCategory(category);
+    const title = sample.title;
+    const budget = randomBudgetForCategory(category);
     const hoursUntilDeadline = randomInt(24, 240);
     const deadline = new Date(now + hoursUntilDeadline * 60 * 60 * 1000);
 
     jobs.push({
       title,
-      description: makeJobDescription(title, category),
+      description: sample.description,
       category,
+      intake_details: sampleIntakeDetails(category),
       budget,
       owner_id: owner._id,
       deadline,
@@ -210,6 +355,7 @@ async function createBidsAndFinalizeJobs(jobs, sellers) {
         seller_id: seller._id,
         amount,
         note: `Bid proposal at $${amount} with milestone delivery plan.`,
+        proposal: sampleBidProposal(job.category),
         sealed: true,
         status: 'pending',
         createdAt: new Date(),
