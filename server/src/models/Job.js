@@ -12,7 +12,7 @@ const jobSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['Home Repairs', 'Tutoring', 'Photography', 'Cleaning', 'Delivery', 'Design & Print'],
+    enum: ['Home Repairs', 'Tutoring', 'Photography', 'Cleaning', 'Delivery', 'Design & Print', 'Catering', 'IT & Tech Support'],
     default: 'Home Repairs',
   },
   intake_details: {

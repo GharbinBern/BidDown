@@ -1,39 +1,62 @@
 import express from 'express';
 import Job from '../models/Job.js';
 import Bid from '../models/Bid.js';
+import User from '../models/User.js';
 
 const router = express.Router();
 
 // Market-wide analytics
 router.get('/market', async (req, res, next) => {
   try {
-    const totalJobs = await Job.countDocuments();
-    const openJobs = await Job.countDocuments({ status: 'open' });
-    const closedJobs = await Job.countDocuments({ status: 'closed' });
-    const completedJobs = await Job.countDocuments({ status: 'completed' });
-
-    const jobData = await Job.aggregate([
-      { $match: { status: { $in: ['closed', 'completed'] } } },
-      {
-        $group: {
-          _id: null,
-          totalBudget: { $sum: '$budget' },
-          avgBudget: { $avg: '$budget' },
-          totalJobs: { $sum: 1 },
+    const [
+      totalJobs,
+      openJobs,
+      closedJobs,
+      completedJobs,
+      totalProviders,
+      verifiedProviders,
+      avgProviderRatingData,
+    ] = await Promise.all([
+      Job.countDocuments(),
+      Job.countDocuments({ status: 'open' }),
+      Job.countDocuments({ status: 'closed' }),
+      Job.countDocuments({ status: 'completed' }),
+      User.countDocuments({ roles: 'seller' }),
+      User.countDocuments({ roles: 'seller', verified: true }),
+      User.aggregate([
+        { $match: { roles: 'seller' } },
+        {
+          $group: {
+            _id: null,
+            avgRating: { $avg: '$average_rating' },
+          },
         },
-      },
+      ]),
     ]);
 
-    const winningBids = await Bid.aggregate([
-      { $match: { status: 'accepted' } },
-      {
-        $group: {
-          _id: null,
-          totalBidAmount: { $sum: '$amount' },
-          avgBidAmount: { $avg: '$amount' },
-          count: { $sum: 1 },
+    const [jobData, winningBids] = await Promise.all([
+      Job.aggregate([
+        { $match: { status: { $in: ['closed', 'completed'] } } },
+        {
+          $group: {
+            _id: null,
+            totalBudget: { $sum: '$budget' },
+            avgBudget: { $avg: '$budget' },
+            totalJobs: { $sum: 1 },
+          },
         },
-      },
+      ]),
+      Bid.aggregate([
+        { $match: { status: 'accepted' } },
+        {
+          $group: {
+            _id: null,
+            totalBidAmount: { $sum: '$amount' },
+            avgBidAmount: { $avg: '$amount' },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
     ]);
 
     const savings = jobData[0] && winningBids[0]
@@ -53,6 +76,11 @@ router.get('/market', async (req, res, next) => {
         open: openJobs,
         closed: closedJobs,
         completed: completedJobs,
+      },
+      providers: {
+        total: totalProviders,
+        verified: verifiedProviders,
+        avgRating: Number((avgProviderRatingData[0]?.avgRating || 0).toFixed(2)),
       },
       savings,
     });

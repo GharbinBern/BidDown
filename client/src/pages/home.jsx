@@ -5,12 +5,14 @@ import { api } from '../api'
 const CITY_OPTIONS = ['All Cities', 'Accra', 'Kumasi', 'Takoradi', 'Tamale', 'Cape Coast']
 
 const CATEGORY_BLOCKS = [
-  { name: 'Home Repairs', icon: 'HR', open: 348, query: 'Home Repairs' },
-  { name: 'Tutoring', icon: 'TU', open: 214, query: 'Tutoring' },
-  { name: 'Photography', icon: 'PH', open: 97, query: 'Photography' },
-  { name: 'Cleaning', icon: 'CL', open: 186, query: 'Cleaning' },
-  { name: 'Delivery', icon: 'DL', open: 129, query: 'Delivery' },
-  { name: 'Design & Print', icon: 'DP', open: 266, query: 'Design & Print' },
+  { name: 'Home Repairs', icon: 'HR', query: 'Home Repairs' },
+  { name: 'Tutoring', icon: 'TU', query: 'Tutoring' },
+  { name: 'Photography', icon: 'PH', query: 'Photography' },
+  { name: 'Cleaning', icon: 'CL', query: 'Cleaning' },
+  { name: 'Delivery', icon: 'DL', query: 'Delivery' },
+  { name: 'Design & Print', icon: 'DP', query: 'Design & Print' },
+  { name: 'Catering', icon: 'CT', query: 'Catering' },
+  { name: 'IT & Tech Support', icon: 'IT', query: 'IT & Tech Support' },
 ]
 
 const PLACEHOLDER_AREAS = [
@@ -33,37 +35,61 @@ export default function HomePage() {
   const navigate = useNavigate()
   const [recentJobs, setRecentJobs] = useState([])
   const [city, setCity] = useState(CITY_OPTIONS[0])
-  const [stats, setStats] = useState(null)
+  const [stats, setStats] = useState({ listings: 0, providers: 0, avgSavingsPercent: 0, providerRating: 0 })
+  const [categoryOpenCounts, setCategoryOpenCounts] = useState({})
 
   useEffect(() => {
+    let mounted = true
+
     Promise.all([
       api.getJobs({ limit: 8, status: 'open' }),
       api.getJobs({ limit: 100, status: 'open' }),
-    ]).then(([recentRes, allRes]) => {
-      const jobs = allRes.data.jobs || []
-      setRecentJobs(recentRes.data.jobs || [])
+      api.getMarketAnalytics(),
+    ]).then(([recentRes, openRes, marketRes]) => {
+      if (!mounted) return
 
-      const totalBids = jobs.reduce((s, j) => s + (j.bids_count || 0), 0)
-      setStats({ listings: allRes.data.pagination?.total || jobs.length, bids: totalBids })
+      const recent = recentRes.data.jobs || []
+      const openJobs = openRes.data.jobs || []
+      const market = marketRes.data || {}
+      const openCounts = openJobs.reduce((acc, job) => {
+        const key = job.category || 'Other'
+        acc[key] = (acc[key] || 0) + 1
+        return acc
+      }, {})
+
+      setRecentJobs(recent)
+      setCategoryOpenCounts(openCounts)
+      setStats({
+        listings: market.jobs?.open || openRes.data.pagination?.total || openJobs.length || 0,
+        providers: market.providers?.verified || 0,
+        avgSavingsPercent: Number(market.savings?.avgSavingsPercent || 0),
+        providerRating: Number(market.providers?.avgRating || 0),
+      })
     }).catch(() => {})
+
+    return () => {
+      mounted = false
+    }
   }, [])
 
   const featuredJobs = useMemo(() => recentJobs.slice(0, 6), [recentJobs])
 
   const providerRating = useMemo(() => {
-    if (!featuredJobs.length) return 4.7
+    if (stats.providerRating > 0) return Number(stats.providerRating.toFixed(1))
+    if (!featuredJobs.length) return 0
     const base = featuredJobs.reduce((sum, job) => sum + Math.min(5, 4 + (job.bids_count || 0) / 12), 0)
     return Number((base / featuredJobs.length).toFixed(1))
-  }, [featuredJobs])
+  }, [featuredJobs, stats.providerRating])
 
   const avgSavings = useMemo(() => {
-    if (!featuredJobs.length) return 32
+    if (stats.avgSavingsPercent > 0) return Math.round(stats.avgSavingsPercent)
+    if (!featuredJobs.length) return 0
     const spread = featuredJobs.reduce((sum, job) => {
       const bids = Math.max(1, job.bids_count || 1)
       return sum + Math.min(38, 18 + bids)
     }, 0)
     return Math.round(spread / featuredJobs.length)
-  }, [featuredJobs])
+  }, [featuredJobs, stats.avgSavingsPercent])
 
   const handleBrowse = () => {
     const query = city === 'All Cities' ? '' : `&city=${encodeURIComponent(city)}`
@@ -87,15 +113,15 @@ export default function HomePage() {
           </div>
           <div className="landing-stat-row">
             <div className="landing-stat">
-              <strong>{stats?.listings || 1240}</strong>
+              <strong>{stats.listings}</strong>
               <span>Active Requests</span>
             </div>
             <div className="landing-stat">
-              <strong>{(stats?.listings || 1240) + 2560}+</strong>
+              <strong>{stats.providers}</strong>
               <span>Verified Providers</span>
             </div>
             <div className="landing-stat">
-              <strong>avg {providerRating} ★</strong>
+              <strong>{providerRating ? `avg ${providerRating} ★` : 'avg --'}</strong>
               <span>Provider Rating</span>
             </div>
             <div className="landing-stat">
@@ -197,7 +223,7 @@ export default function HomePage() {
               >
                 <div className="landing-category-icon">{category.icon}</div>
                 <div className="landing-category-name">{category.name}</div>
-                <div className="landing-category-open">{category.open} open</div>
+                <div className="landing-category-open">{categoryOpenCounts[category.name] || 0} open</div>
               </button>
             ))}
           </div>

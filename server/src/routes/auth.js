@@ -69,16 +69,23 @@ router.post('/login', [
 
   try {
     const { email, password } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
 
     // Find user
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[auth:login] user not found', { email: normalizedEmail });
+      }
       return res.status(400).json({ error: 'Invalid credentials' });
     }
 
     // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[auth:login] password mismatch', { email: normalizedEmail, userId: String(user._id) });
+      }
       return res.status(400).json({ error: 'Invalid credentials' });
     }
 
@@ -88,6 +95,10 @@ router.post('/login', [
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[auth:login] login success', { email: normalizedEmail, userId: String(user._id) });
+    }
 
     res.json({
       token,
@@ -106,6 +117,105 @@ router.get('/me', authMiddleware, async (req, res, next) => {
       return res.status(404).json({ error: 'User not found' });
     }
     res.json(user.getPublicProfile());
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Update current user profile
+router.put('/me/profile', authMiddleware, [
+  body('firstName').optional().isString().trim().isLength({ min: 1, max: 60 }),
+  body('lastName').optional().isString().trim().isLength({ min: 1, max: 80 }),
+  body('name').optional().isString().trim().isLength({ min: 1, max: 140 }),
+  body('email').optional().isEmail(),
+  body('phone').optional().isString().trim().isLength({ max: 40 }),
+  body('city').optional().isString().trim().isLength({ max: 80 }),
+  body('neighbourhood').optional().isString().trim().isLength({ max: 80 }),
+  body('about').optional().isString().trim().isLength({ max: 1200 }),
+  body('primaryCategory').optional().isString().trim().isLength({ max: 80 }),
+  body('skills').optional().isArray({ max: 40 }),
+  body('skills.*').optional().isString().trim().isLength({ min: 1, max: 80 }),
+], async (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const {
+      firstName,
+      lastName,
+      name,
+      email,
+      phone,
+      city,
+      neighbourhood,
+      about,
+      primaryCategory,
+      skills,
+    } = req.body;
+
+    const nextNameParts = [
+      typeof firstName === 'string' ? firstName.trim() : '',
+      typeof lastName === 'string' ? lastName.trim() : '',
+    ].filter(Boolean);
+    const nextName = nextNameParts.length > 0
+      ? nextNameParts.join(' ')
+      : (typeof name === 'string' ? name.trim() : '');
+
+    if (email && email !== user.email) {
+      const existing = await User.findOne({ email, _id: { $ne: user._id } });
+      if (existing) {
+        return res.status(400).json({ error: 'Email already in use' });
+      }
+      user.email = email;
+    }
+
+    if (nextName) user.name = nextName;
+    if (typeof phone === 'string') user.phone = phone.trim();
+    if (typeof city === 'string' && city.trim()) user.city = city.trim();
+    if (typeof neighbourhood === 'string') user.neighbourhood = neighbourhood.trim();
+    if (typeof primaryCategory === 'string' && primaryCategory.trim()) user.primaryCategory = primaryCategory.trim();
+
+    if (typeof about === 'string') {
+      const sellerProfile = user.seller_profile || {};
+      user.seller_profile = {
+        ...sellerProfile,
+        bio: about.trim(),
+      };
+    }
+
+    user.updatedAt = new Date();
+    await user.save();
+
+    const providerProfile = await ProviderProfile.findOneAndUpdate(
+      { user_id: user._id },
+      {
+        $set: {
+          city: typeof city === 'string' && city.trim() ? city.trim() : (user.city || 'Accra'),
+          skills: Array.isArray(skills) ? skills.filter(Boolean) : [],
+          headline: primaryCategory
+            ? `${primaryCategory} specialist`
+            : undefined,
+          updatedAt: new Date(),
+        },
+        $setOnInsert: {
+          user_id: user._id,
+          country: 'Ghana',
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    res.json({
+      user: user.getPublicProfile(),
+      provider_profile: providerProfile,
+    });
   } catch (err) {
     next(err);
   }

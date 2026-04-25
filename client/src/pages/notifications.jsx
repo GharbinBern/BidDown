@@ -1,7 +1,15 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Bell, ArrowRight } from 'lucide-react'
+import {
+  Bell,
+  CheckCheck,
+  CircleDollarSign,
+  Clock3,
+  Shield,
+  Star,
+  Trophy,
+} from 'lucide-react'
 import { useAuthStore, useNotificationsStore } from '../store'
 
 function formatNotifTime(value) {
@@ -19,11 +27,54 @@ function formatNotifTime(value) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function notifIcon(type) {
-  if (type === 'lost') return '✕'
-  if (type === 'escrow') return '$'
-  if (type === 'won' || type === 'accepted') return '★'
-  return '•'
+function getRelativeBucket(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'this-week'
+
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const startOfYesterday = new Date(startOfToday)
+  startOfYesterday.setDate(startOfToday.getDate() - 1)
+  const startOfWeek = new Date(startOfToday)
+  startOfWeek.setDate(startOfToday.getDate() - 6)
+
+  if (date >= startOfToday) return 'today'
+  if (date >= startOfYesterday) return 'yesterday'
+  if (date >= startOfWeek) return 'this-week'
+  return 'older'
+}
+
+function categoryForNotification(item) {
+  if (item.type === 'escrow') return 'payments'
+  if (item.type === 'lost' || item.type === 'won' || item.type === 'accepted') return 'bids'
+  return 'system'
+}
+
+function iconForNotification(item) {
+  if (item.type === 'lost') return <Clock3 size={16} />
+  if (item.type === 'won' || item.type === 'accepted') return <Trophy size={16} />
+  if (item.type === 'escrow') return <CircleDollarSign size={16} />
+  if (item.type === 'review') return <Star size={16} />
+  if (item.type === 'job') return <Clock3 size={16} />
+  return <Shield size={16} />
+}
+
+function iconBgForNotification(item) {
+  if (item.type === 'lost') return '#f6e8e8'
+  if (item.type === 'won' || item.type === 'accepted') return '#e7edf8'
+  if (item.type === 'escrow') return '#e7f0de'
+  if (item.type === 'review') return '#e8f0de'
+  if (item.type === 'job') return '#e8eff7'
+  return '#ece9df'
+}
+
+function iconColorForNotification(item) {
+  if (item.type === 'lost') return '#b6332a'
+  if (item.type === 'won' || item.type === 'accepted') return '#2f63b4'
+  if (item.type === 'escrow') return '#7b6a20'
+  if (item.type === 'review') return '#3d5f2b'
+  if (item.type === 'job') return '#486e93'
+  return '#8a7332'
 }
 
 export default function NotificationsPage() {
@@ -36,7 +87,9 @@ export default function NotificationsPage() {
     loading,
     refreshNotifications,
     markRead,
+    markAllRead,
   } = useNotificationsStore()
+  const [activeFilter, setActiveFilter] = useState('all')
 
   useEffect(() => {
     if (!user) return
@@ -45,83 +98,220 @@ export default function NotificationsPage() {
     })
   }, [user, refreshNotifications])
 
-  return (
-    <div className="main">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div>
-          <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 18, fontWeight: 900 }}>Notifications</div>
-          <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '2px', marginTop: 4 }}>Activity feed</div>
+  const visibleNotifications = useMemo(() => {
+    if (activeFilter === 'all') return notifications
+    return notifications.filter((item) => categoryForNotification(item) === activeFilter)
+  }, [notifications, activeFilter])
+
+  const sectioned = useMemo(() => {
+    const result = {
+      today: [],
+      yesterday: [],
+      'this-week': [],
+      older: [],
+    }
+    visibleNotifications.forEach((item) => {
+      result[getRelativeBucket(item.timestamp)].push(item)
+    })
+    return result
+  }, [visibleNotifications])
+
+  const sections = [
+    { key: 'today', label: 'Today' },
+    { key: 'yesterday', label: 'Yesterday' },
+    { key: 'this-week', label: 'This Week' },
+    { key: 'older', label: 'Older' },
+  ]
+
+  const filters = [
+    { key: 'all', label: 'All' },
+    { key: 'bids', label: 'Bids' },
+    { key: 'payments', label: 'Payments' },
+    { key: 'system', label: 'System' },
+  ]
+
+  const hasVisible = visibleNotifications.length > 0
+
+  const renderRow = (item) => {
+    const isUnread = !readIds.includes(item.id)
+    return (
+      <article
+        key={item.id}
+        onClick={() => {
+          if (item.jobId) navigate(`/jobs/${item.jobId}`)
+        }}
+        style={{
+          background: '#fff',
+          borderBottom: '1px solid #d8dde6',
+          padding: '14px 16px',
+          display: 'grid',
+          gridTemplateColumns: '50px 1fr auto',
+          gap: 12,
+          alignItems: 'start',
+          cursor: item.jobId ? 'pointer' : 'default',
+        }}
+      >
+        <div style={{ position: 'relative', paddingTop: 1 }}>
+          {isUnread && (
+            <span style={{
+              position: 'absolute',
+              left: -9,
+              top: 6,
+              width: 9,
+              height: 9,
+              borderRadius: '50%',
+              background: '#1f68b3',
+            }} />
+          )}
+          <div style={{
+            width: 42,
+            height: 42,
+            borderRadius: '50%',
+            background: iconBgForNotification(item),
+            color: iconColorForNotification(item),
+            display: 'grid',
+            placeItems: 'center',
+            border: '1px solid #d8dde6',
+          }}>
+            {iconForNotification(item)}
+          </div>
         </div>
-        {unreadCount > 0 && (
-          <span className="badge">{unreadCount} unread</span>
+
+        <div style={{ minWidth: 0 }}>
+          <div style={{ color: '#1f2b37', fontSize: 15, fontWeight: 700, lineHeight: 1.4 }}>
+            {item.title}
+            {item.detail ? ` - ${item.detail}` : ''}
+          </div>
+          <div style={{ color: '#667789', marginTop: 4, fontSize: 12 }}>
+            {categoryForNotification(item).charAt(0).toUpperCase() + categoryForNotification(item).slice(1)} · {formatNotifTime(item.timestamp)}
+          </div>
+        </div>
+
+        {isUnread ? (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={(event) => {
+              event.stopPropagation()
+              markRead(item.id, user)
+            }}
+            style={{
+              textTransform: 'none',
+              letterSpacing: 0,
+              fontSize: 12,
+              fontWeight: 700,
+              padding: '6px 12px',
+              borderRadius: 8,
+              borderColor: '#c9d0da',
+            }}
+          >
+            Mark read
+          </button>
+        ) : (
+          <div style={{ color: '#7a8898', fontSize: 12, paddingTop: 8 }}>Read</div>
         )}
-      </div>
+      </article>
+    )
+  }
 
-      {!loading && notifications.length === 0 && (
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '48px 20px', textAlign: 'center' }}>
-          <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}><Bell size={44} /></div>
-          <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: 15, marginBottom: 6 }}>No events yet</div>
-          <div style={{ color: 'var(--muted)', fontSize: 11 }}>When a bid is accepted/rejected or escrow is released, it will appear here.</div>
+  return (
+    <div className="main" style={{ maxWidth: 1340 }}>
+
+      <section style={{
+        border: '1px solid #d4dbe5',
+        background: '#fff',
+        borderRadius: 12,
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          display: 'flex',
+          gap: 10,
+          padding: 14,
+          borderBottom: '1px solid #d4dbe5',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+        }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#6c7b8d' }}>
+            Filter
+            <select
+              className="input-field"
+              value={activeFilter}
+              onChange={(event) => setActiveFilter(event.target.value)}
+              style={{ minWidth: 140, height: 34, padding: '6px 10px' }}
+            >
+              {filters.map((filter) => (
+                <option key={filter.key} value={filter.key}>{filter.label}</option>
+              ))}
+            </select>
+          </label>
+          <div style={{ marginLeft: 'auto' }}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => markAllRead(user)}
+              style={{
+                textTransform: 'none',
+                letterSpacing: 0,
+                fontSize: 12,
+                fontWeight: 700,
+                padding: '8px 14px',
+                borderRadius: 8,
+                borderColor: '#c9d0da',
+              }}
+            >
+              <CheckCheck size={16} /> Mark all read
+            </button>
+          </div>
         </div>
-      )}
 
-      {notifications.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {notifications.map((item) => {
-            const isUnread = !readIds.includes(item.id)
-            return (
-              <article
-                key={item.id}
-                onClick={() => markRead(item.id, user)}
+        {!loading && !hasVisible && (
+          <div style={{ background: '#f3f6fb', borderTop: '1px solid #d8dde6', padding: '48px 20px', textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 10, opacity: 0.45, display: 'inline-flex' }}><Bell size={42} /></div>
+            <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4, color: '#1f2b37', fontFamily: 'var(--font-head)' }}>No notifications in this view</div>
+            <div style={{ color: '#687889', fontSize: 12 }}>Try another filter or wait for new activity.</div>
+          </div>
+        )}
+
+        {loading && (
+          <div style={{ background: '#f3f6fb', borderTop: '1px solid #d8dde6', padding: '30px 20px', color: '#687889', fontSize: 12 }}>
+            Loading notifications...
+          </div>
+        )}
+
+        {!loading && hasVisible && sections.map((section) => (
+          sectioned[section.key].length > 0 ? (
+            <div key={section.key}>
+              <div
                 style={{
-                  background: isUnread ? 'var(--accent-soft)' : 'var(--card)',
-                  border: '1px solid',
-                  borderColor: isUnread ? 'var(--accent)' : 'var(--border)',
-                  borderTop: 'none',
-                  padding: '12px 14px',
-                  display: 'grid',
-                  gridTemplateColumns: '28px 1fr auto',
-                  gap: 12,
-                  alignItems: 'start',
-                  cursor: 'pointer',
-                  transition: 'background 0.15s',
+                  background: '#e9e7e2',
+                  borderTop: '1px solid #d4dbe5',
+                  borderBottom: '1px solid #d4dbe5',
+                  padding: '7px 18px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '2px',
+                  fontSize: 11,
+                  color: '#58697a',
+                  fontWeight: 700,
                 }}
               >
-                <div style={{
-                  width: 28, height: 28, borderRadius: '50%',
-                  background: item.type === 'lost' ? '#c0392b20' : item.type === 'escrow' ? '#2563eb20' : 'var(--accent-soft)',
-                  color: item.type === 'lost' ? 'var(--accent2)' : item.type === 'escrow' ? 'var(--blue)' : 'var(--accent)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: "'Syne', sans-serif", fontSize: 12, fontWeight: 900,
-                  border: `1px solid ${item.type === 'lost' ? '#c0392b40' : item.type === 'escrow' ? '#2563eb40' : '#e8b84b40'}`,
-                  flexShrink: 0,
-                }}>
-                  {notifIcon(item.type)}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 13, fontWeight: 700, marginBottom: 3 }}>{item.title}</div>
-                  <div style={{ color: 'var(--muted)', fontSize: 11, lineHeight: 1.5 }}>{item.detail}</div>
-                  <div style={{ color: 'var(--muted)', fontSize: 9, marginTop: 4, textTransform: 'uppercase', letterSpacing: '1.5px' }}>{formatNotifTime(item.timestamp)}</div>
-                </div>
-                {item.jobId && (
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      markRead(item.id, user)
-                      navigate(`/jobs/${item.jobId}`)
-                    }}
-                    style={{ flexShrink: 0, marginTop: 2 }}
-                  >
-                    View <ArrowRight size={11} />
-                  </button>
-                )}
-              </article>
-            )
-          })}
+                {section.label}
+              </div>
+              {sectioned[section.key].map((item) => renderRow(item))}
+            </div>
+          ) : null
+        ))}
+
+        <div style={{
+          borderTop: '1px solid #d4dbe5',
+          background: '#f7f9fc',
+          padding: '10px 18px',
+          color: '#6c7b8d',
+          fontSize: 12,
+          textAlign: 'center',
+        }}>
+          Notifications update automatically based on activity.
         </div>
-      )}
+      </section>
     </div>
   )
 }

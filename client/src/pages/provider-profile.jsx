@@ -51,8 +51,8 @@ function StarRow({ rating = 5, size = 14 }) {
         <Star
           key={n}
           size={size}
-          fill={rating >= n ? '#dca53a' : rating >= n - 0.5 ? '#dca53a' : 'none'}
-          stroke={rating >= n ? '#dca53a' : rating >= n - 0.5 ? '#dca53a' : '#c5cdd8'}
+          fill={rating >= n ? '#4a6080' : rating >= n - 0.5 ? '#4a6080' : 'none'}
+          stroke={rating >= n ? '#4a6080' : rating >= n - 0.5 ? '#4a6080' : '#c5cdd8'}
         />
       ))}
     </span>
@@ -184,18 +184,7 @@ export default function ProviderProfilePage() {
 
   return (
     <div className="pp-page">
-      {/* Topbar */}
-      <div className="pp-topbar">
-        <div className="pp-breadcrumb">
-          <button type="button" className="pp-bc-btn" onClick={() => navigate('/')}>Home</button>
-          <span className="pp-bc-sep">/</span>
-          <button type="button" className="pp-bc-btn" onClick={() => navigate('/browse')}>Browse</button>
-          <span className="pp-bc-sep">/</span>
-          <button type="button" className="pp-bc-btn" onClick={() => navigate('/browse')}>Providers</button>
-          <span className="pp-bc-sep">/</span>
-          <span>{user.name}</span>
-        </div>
-      </div>
+
 
       <div className="pp-layout">
         {/* ─── LEFT MAIN COLUMN ─── */}

@@ -26,6 +26,24 @@ const FLOW_META = {
   completed: { label: 'Complete', Icon: CircleCheckBig },
 }
 
+const WF_STEPS = [
+  { id: 'bid_accepted', label: 'Bid accepted' },
+  { id: 'contract',     label: 'Details confirmed' },
+  { id: 'in_progress',  label: 'Work in progress' },
+  { id: 'review',       label: 'Job completed' },
+  { id: 'payment',      label: 'Payment released' },
+  { id: 'reviews',      label: 'Reviews' },
+]
+
+function wfStageToStep(stage) {
+  if (stage === 'bidding' || stage === 'contract') return 1
+  if (stage === 'escrow') return 1
+  if (stage === 'in_progress') return 2
+  if (stage === 'review' || stage === 'dispute') return 3
+  if (stage === 'completed') return 4
+  return 1
+}
+
 function toDateText(value) {
   if (!value) return 'N/A'
   const date = new Date(value)
@@ -278,17 +296,6 @@ function BiddingView({ job, bids, myBid, isAuth, onBidSubmit }) {
   return (
     <div className="jd-shell">
       <div className="jd-topbar">
-        <nav className="jd-breadcrumb">
-          <button type="button" className="jd-bc-btn" onClick={() => navigate('/')}>Home</button>
-          <span className="jd-bc-sep">›</span>
-          <button type="button" className="jd-bc-btn" onClick={() => navigate('/browse')}>Browse</button>
-          <span className="jd-bc-sep">›</span>
-          <button type="button" className="jd-bc-btn" onClick={() => navigate(`/browse?category=${encodeURIComponent(job.category || '')}`)}>
-            {job.category || 'All'}
-          </button>
-          <span className="jd-bc-sep">›</span>
-          <span className="jd-bc-current">{(job.title || '').slice(0, 45)}{(job.title || '').length > 45 ? '…' : ''}</span>
-        </nav>
         {biddingLive && (
           <div className="jd-live-badge">
             <span className="jd-live-dot" />
@@ -449,15 +456,6 @@ function BiddingView({ job, bids, myBid, isAuth, onBidSubmit }) {
               </div>
             )}
 
-            {myBid && (
-              <div className="jd-my-bid-placed">
-                <CircleCheckBig size={15} />
-                Your bid: <strong>GH¢ {Number(myBid.amount).toLocaleString()}</strong>
-                {lowestAmt !== null && Number(myBid.amount) <= lowestAmt && (
-                  <span className="jd-leading"> · You&apos;re leading!</span>
-                )}
-              </div>
-            )}
 
             <form onSubmit={handleSubmit} className="jd-bid-form">
               <div className="jd-form-group">
@@ -596,6 +594,12 @@ export default function JobDetailPage() {
   const [revisionReason, setRevisionReason] = useState('')
   const [disputeReason, setDisputeReason]   = useState('')
   const [contractDraft, setContractDraft]   = useState({ scope: '', deadline: '', agreed_price: '' })
+  const [jobReviews, setJobReviews]         = useState([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [reviewRating, setReviewRating]     = useState(5)
+  const [reviewComment, setReviewComment]   = useState('')
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const [viewingStep, setViewingStep]       = useState(null)
 
   useEffect(() => { fetchJob(id) }, [id, fetchJob])
 
@@ -628,6 +632,12 @@ export default function JobDetailPage() {
     return 'contract'
   }, [selectedJob])
   const reviewHoursLeft = useMemo(() => timeLeftHours(selectedJob?.review_deadline), [selectedJob?.review_deadline])
+  const revieweeId = useMemo(() => {
+    if (isBuyer) return normalizeUserId(selectedJob?.winning_bid_id?.seller_id?._id || selectedJob?.winning_bid_id?.seller_id)
+    if (isSeller) return normalizeUserId(selectedJob?.owner_id?._id || selectedJob?.owner_id)
+    return null
+  }, [isBuyer, isSeller, selectedJob])
+  const reviewTargetLabel = isBuyer ? 'provider' : isSeller ? 'client' : 'participant'
 
   useEffect(() => {
     if (!selectedJob || selectedJob.workflow_stage !== 'contract') return
@@ -637,6 +647,37 @@ export default function JobDetailPage() {
       agreed_price: selectedJob.contract_terms?.agreed_price || selectedJob.escrow_amount || '',
     })
   }, [selectedJob])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadJobReviews = async () => {
+      if (!canSeeWorkflow || stage !== 'completed') return
+      setReviewsLoading(true)
+      try {
+        const { data } = await api.getJobReview(id)
+        if (cancelled) return
+        setJobReviews(Array.isArray(data) ? data : [])
+      } catch {
+        if (!cancelled) setJobReviews([])
+      } finally {
+        if (!cancelled) setReviewsLoading(false)
+      }
+    }
+
+    loadJobReviews()
+    return () => {
+      cancelled = true
+    }
+  }, [id, canSeeWorkflow, stage])
+
+  const myReview = useMemo(() => {
+    if (!userId) return null
+    return jobReviews.find((entry) => {
+      const reviewerId = normalizeUserId(entry?.reviewer_id?._id || entry?.reviewer_id)
+      return reviewerId && String(reviewerId) === String(userId)
+    }) || null
+  }, [jobReviews, userId])
 
   const runAction = async (key, action, successMessage) => {
     setBusyAction(key)
@@ -661,6 +702,36 @@ export default function JobDetailPage() {
     await Promise.all([fetchJob(id, { silent: true }), loadBids()])
   }, [id, fetchJob, loadBids])
 
+  const submitInlineReview = async () => {
+    if (!revieweeId) {
+      toast.error('Unable to determine who should be reviewed for this job')
+      return
+    }
+    if (myReview) {
+      toast.error('You already reviewed this job')
+      return
+    }
+
+    setReviewSubmitting(true)
+    try {
+      await api.createReview({
+        job_id: id,
+        reviewee_id: revieweeId,
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+      })
+
+      const { data } = await api.getJobReview(id)
+      setJobReviews(Array.isArray(data) ? data : [])
+      setReviewComment('')
+      toast.success('Review submitted successfully')
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Failed to submit review')
+    } finally {
+      setReviewSubmitting(false)
+    }
+  }
+
   if (loading && !selectedJob) return <div className="main" />
   if (!selectedJob) return <div className="main" style={{ padding: 40, color: 'var(--muted)' }}>Job not found.</div>
 
@@ -678,291 +749,483 @@ export default function JobDetailPage() {
   }
 
   /* post-acceptance → workflow view */
+  const activeStep  = wfStageToStep(stage)
+  const displayStep = viewingStep !== null ? viewingStep : activeStep
+  const isDispute   = stage === 'dispute'
+  const owner       = selectedJob.owner_id || {}
+  const seller      = selectedJob.winning_bid_id?.seller_id || {}
+  const agreedPrice = selectedJob.contract_terms?.agreed_price || selectedJob.escrow_amount || selectedJob.winning_bid_id?.amount || 0
+  const location    = getIntakeLocation(selectedJob)
+  const jobNum      = String(selectedJob._id || id).slice(-6).toUpperCase()
+
   return (
-    <div className="main">
-      <div className="workspace-head">
-        <div>
-          <div className="section-title" style={{ marginBottom: 8 }}>Job <span>Workflow</span></div>
-          <p className="workspace-subtitle">Structured post-acceptance execution from contract to release.</p>
+    <div className="wf2-shell">
+
+      {/* Job header card */}
+      <div className="wf2-header">
+        <div className="wf2-header-left">
+          <div className="wf2-cats">
+            <span className="wf2-cat">{selectedJob.category || 'General'}</span>
+            {selectedJob.subcategory && <><span className="wf2-cat-dot"> · </span><span className="wf2-cat">{selectedJob.subcategory}</span></>}
+          </div>
+          <h1 className="wf2-title">{selectedJob.title}</h1>
+          <div className="wf2-meta-row">
+            {location && <><MapPin size={12} strokeWidth={2} /><span>{location}</span><span className="wf2-dot">·</span></>}
+            <span>Job #{jobNum}</span>
+            <span className="wf2-dot">·</span>
+            <span>{owner.name || 'Client'} → {seller.name || 'Provider'}</span>
+          </div>
         </div>
-        <div className="workspace-badge">
-          <Clock3 size={15} />
-          <span>{stage === 'review' && reviewHoursLeft !== null ? `${reviewHoursLeft}h review left` : `Stage: ${stage.replace('_', ' ')}`}</span>
+        <div className="wf2-header-right">
+          <div className="wf2-price">GH¢ {Number(agreedPrice).toLocaleString()}</div>
+          <div className="wf2-price-label">Agreed price</div>
+          {stage === 'completed'
+            ? <div className="wf2-released-badge"><CircleCheckBig size={12} />Released</div>
+            : <div className="wf2-escrow-badge"><ShieldCheck size={12} />In escrow</div>}
         </div>
       </div>
 
-      <section className="wf-section">
-        <div className="wf-top-grid">
-          <div className="wf-job-title">{selectedJob.title}</div>
-          <div className="wf-role-pill">{isBuyer ? 'Buyer View' : isSeller ? 'Seller View' : 'Observer'}</div>
-        </div>
-        {canSeeWorkflow && <StageRail stage={stage} isDispute={stage === 'dispute'} />}
-      </section>
-
-      <div className="wf-layout">
-        <section className="wf-section">
-          <div className="wf-card-title-row">
-            <div className="wf-card-title">Current Stage Actions</div>
-            {stage === 'dispute' && <span className="status-pill status-pending">Dispute Open</span>}
-            {stage === 'completed' && <span className="status-pill status-closed">Complete</span>}
-          </div>
-
-          {!selectedJob.winning_bid_id && (
-            <div className="wf-note-block">This job has no accepted bid yet, so the post-acceptance workflow has not started.</div>
-          )}
-
-          {selectedJob.winning_bid_id && !canSeeWorkflow && (
-            <div className="wf-note-block">Only the buyer and winning seller can view workflow controls.</div>
-          )}
-
-          {selectedJob.winning_bid_id && canSeeWorkflow && stage === 'bidding' && (
-            <div className="wf-note-block">
-              Workflow is initializing for this job. Start by confirming contract terms below.
+      {/* Step rail */}
+      <div className="wf2-rail">
+        {WF_STEPS.map((step, i) => {
+          const done   = i < displayStep
+          const active = i === displayStep
+          const isLast = i === WF_STEPS.length - 1
+          return (
+            <div key={step.id} className="wf2-step" style={isLast ? { flex: '0 0 auto' } : undefined}>
+              <div className="wf2-step-inner">
+                <div className={`wf2-circle${done ? ' done' : ''}${active ? ' active' : ''}${isDispute && active ? ' dispute' : ''}`}>
+                  {done ? <CircleCheckBig size={15} /> : i + 1}
+                </div>
+                <div className={`wf2-step-label${done ? ' done' : ''}${active ? ' active' : ''}`}>{step.label}</div>
+              </div>
+              {!isLast && <div className={`wf2-step-line${done ? ' done' : ''}`} />}
             </div>
+          )
+        })}
+      </div>
+
+      {/* Current step card */}
+      <div className="wf2-card">
+        <div className={`wf2-card-head${isDispute ? ' dispute' : stage === 'completed' ? ' success' : ''}`}>
+          <div className="wf2-card-head-left">
+            <span className="wf2-card-step-num">{displayStep + 1}</span>
+            <span className="wf2-card-step-label">
+              {isDispute ? 'Dispute Under Review' : WF_STEPS[displayStep]?.label}
+            </span>
+          </div>
+          <span className="wf2-card-cur-label">
+            {isDispute ? 'Escalated' : displayStep === 5 ? 'Reviews' : stage === 'completed' ? 'Complete' : 'Current step'}
+          </span>
+        </div>
+
+        <div className="wf2-card-body">
+
+          {/* No access */}
+          {!canSeeWorkflow && (
+            <div className="wf2-info-note">Only the client and winning provider can access workflow controls for this job.</div>
           )}
 
-          {selectedJob.winning_bid_id && canSeeWorkflow && (stage === 'contract' || stage === 'bidding') && (
+          {/* ── Contract / Escrow stage ───────────────────────── */}
+          {canSeeWorkflow && (stage === 'contract' || stage === 'bidding' || stage === 'escrow') && (
             <>
-              <div className="wf-data-grid two">
-                <div className="wf-cell"><div className="wf-cell-label">Agreed Price</div><div className="wf-cell-value">GH¢ {Number(selectedJob.contract_terms?.agreed_price || selectedJob.escrow_amount || 0).toLocaleString()}</div></div>
-                <div className="wf-cell"><div className="wf-cell-label">Deadline</div><div className="wf-cell-value">{toDateText(selectedJob.contract_terms?.deadline)}</div></div>
+              <div className="wf2-data-row">
+                <div className="wf2-data-cell">
+                  <div className="wf2-data-label">Agreed Price</div>
+                  <div className="wf2-data-val">GH¢ {Number(agreedPrice).toLocaleString()}</div>
+                </div>
+                <div className="wf2-data-cell">
+                  <div className="wf2-data-label">Deadline</div>
+                  <div className="wf2-data-val">{toDateText(selectedJob.contract_terms?.deadline)}</div>
+                </div>
+                <div className="wf2-data-cell">
+                  <div className="wf2-data-label">Escrow</div>
+                  <div className="wf2-data-val" style={{ color: selectedJob.escrow_deposited_at ? 'var(--green)' : 'var(--muted)' }}>
+                    {selectedJob.escrow_deposited_at ? 'Funded' : 'Pending'}
+                  </div>
+                </div>
               </div>
 
-              {isBuyer ? (
+              {stage !== 'escrow' && isBuyer && (
                 <>
-                  <div className="form-group" style={{ marginBottom: 10 }}>
-                    <label className="form-label">Contract Scope</label>
-                    <textarea
-                      className="form-textarea"
-                      value={contractDraft.scope}
-                      onChange={(e) => setContractDraft((prev) => ({ ...prev, scope: e.target.value }))}
-                      placeholder="Define exact deliverables"
-                    />
+                  <div className="wf2-form-group">
+                    <label className="wf2-form-label">Contract scope</label>
+                    <textarea className="wf2-form-textarea" rows={3} value={contractDraft.scope} onChange={(e) => setContractDraft((p) => ({ ...p, scope: e.target.value }))} placeholder="Define exact deliverables and expectations" />
                   </div>
-                  <div className="wf-data-grid two">
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label">Contract Deadline</label>
-                      <input
-                        className="form-input"
-                        type="date"
-                        value={contractDraft.deadline}
-                        onChange={(e) => setContractDraft((prev) => ({ ...prev, deadline: e.target.value }))}
-                      />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+                    <div className="wf2-form-group" style={{ marginBottom: 0 }}>
+                      <label className="wf2-form-label">Deadline</label>
+                      <input className="wf2-form-input" type="date" value={contractDraft.deadline} onChange={(e) => setContractDraft((p) => ({ ...p, deadline: e.target.value }))} />
                     </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label">Agreed Price</label>
-                      <input
-                        className="form-input"
-                        type="number"
-                        min="50"
-                        value={contractDraft.agreed_price}
-                        onChange={(e) => setContractDraft((prev) => ({ ...prev, agreed_price: e.target.value }))}
-                      />
+                    <div className="wf2-form-group" style={{ marginBottom: 0 }}>
+                      <label className="wf2-form-label">Agreed Price (GH¢)</label>
+                      <input className="wf2-form-input" type="number" min="50" value={contractDraft.agreed_price} onChange={(e) => setContractDraft((p) => ({ ...p, agreed_price: e.target.value }))} />
                     </div>
-                  </div>
-                  <div className="wf-action-row">
-                    <button
-                      className="btn btn-ghost"
-                      disabled={busyAction === 'saveContract'}
-                      onClick={() => runAction('saveContract', () => api.updateContractDraft(id, {
-                        scope: contractDraft.scope,
-                        deadline: contractDraft.deadline,
-                        agreed_price: Number(contractDraft.agreed_price),
-                      }), 'Contract updated. Both parties need to sign')}
-                    >
-                      {busyAction === 'saveContract' ? 'Saving...' : 'Save Contract Terms'}
-                    </button>
                   </div>
                 </>
-              ) : (
-                <div className="wf-note-block">{selectedJob.contract_terms?.scope || selectedJob.description}</div>
               )}
 
-              <div className="wf-sign-grid">
-                <div className={`wf-sign-card ${selectedJob.contract_terms?.buyer_confirmed ? 'signed' : ''}`}>
-                  <div className="wf-sign-label">Buyer</div>
-                  <div>{selectedJob.owner_id?.name || 'Buyer'}</div>
-                  <div className="wf-sign-status">{selectedJob.contract_terms?.buyer_confirmed ? 'Signed' : 'Pending'}</div>
+              {stage !== 'escrow' && !isBuyer && (
+                <div className="wf2-info-note">{selectedJob.contract_terms?.scope || selectedJob.description || 'Contract scope to be defined by the client.'}</div>
+              )}
+
+              {stage !== 'escrow' && (
+                <div className="wf2-sign-row">
+                  <div className={`wf2-sign-card${selectedJob.contract_terms?.buyer_confirmed ? ' signed' : ''}`}>
+                    <div className="wf2-sign-role">Client</div>
+                    <div className="wf2-sign-name">{owner.name || 'Buyer'}</div>
+                    <div className={`wf2-sign-status${selectedJob.contract_terms?.buyer_confirmed ? '' : ' pending'}`}>
+                      {selectedJob.contract_terms?.buyer_confirmed ? 'Signed' : 'Pending signature'}
+                    </div>
+                  </div>
+                  <div className={`wf2-sign-card${selectedJob.contract_terms?.seller_confirmed ? ' signed' : ''}`}>
+                    <div className="wf2-sign-role">Provider</div>
+                    <div className="wf2-sign-name">{seller.name || 'Provider'}</div>
+                    <div className={`wf2-sign-status${selectedJob.contract_terms?.seller_confirmed ? '' : ' pending'}`}>
+                      {selectedJob.contract_terms?.seller_confirmed ? 'Signed' : 'Pending signature'}
+                    </div>
+                  </div>
                 </div>
-                <div className={`wf-sign-card ${selectedJob.contract_terms?.seller_confirmed ? 'signed' : ''}`}>
-                  <div className="wf-sign-label">Seller</div>
-                  <div>{selectedJob.winning_bid_id?.seller_id?.name || 'Seller'}</div>
-                  <div className="wf-sign-status">{selectedJob.contract_terms?.seller_confirmed ? 'Signed' : 'Pending'}</div>
-                </div>
-              </div>
-              <div className="wf-action-row">
-                <button className="btn btn-primary" disabled={busyAction === 'confirmContract'} onClick={() => runAction('confirmContract', () => api.confirmContract(id), 'Contract confirmation saved')}>
-                  <FileSignature size={14} />
-                  {busyAction === 'confirmContract' ? 'Saving...' : 'Sign Contract'}
-                </button>
+              )}
+
+              <div className="wf2-actions">
+                {stage !== 'escrow' && isBuyer && (
+                  <button className="wf2-action-sec" disabled={busyAction === 'saveContract'}
+                    onClick={() => runAction('saveContract', () => api.updateContractDraft(id, { scope: contractDraft.scope, deadline: contractDraft.deadline, agreed_price: Number(contractDraft.agreed_price) }), 'Contract terms saved')}>
+                    {busyAction === 'saveContract' ? 'Saving...' : 'Save Terms'}
+                  </button>
+                )}
+                {stage !== 'escrow' && (
+                  <button className="wf2-action-primary" disabled={busyAction === 'confirmContract'}
+                    onClick={() => runAction('confirmContract', () => api.confirmContract(id), 'Contract signed')}>
+                    <FileSignature size={14} />
+                    {busyAction === 'confirmContract' ? 'Signing...' : 'Sign Contract'}
+                  </button>
+                )}
+                {stage === 'escrow' && isBuyer && (
+                  <button className="wf2-action-primary" disabled={busyAction === 'escrow'}
+                    onClick={() => runAction('escrow', () => api.depositEscrow(id), 'Escrow funded — provider can now begin work')}>
+                    <ShieldCheck size={14} />
+                    {busyAction === 'escrow' ? 'Processing...' : 'Deposit to Escrow'}
+                  </button>
+                )}
+                {stage === 'escrow' && !isBuyer && (
+                  <div className="wf2-info-note" style={{ margin: 0, flex: 1 }}>Waiting for the client to fund escrow before work can begin.</div>
+                )}
               </div>
             </>
           )}
 
-          {selectedJob.winning_bid_id && canSeeWorkflow && stage === 'escrow' && (
+          {/* ── In Progress stage ────────────────────────────── */}
+          {canSeeWorkflow && stage === 'in_progress' && (
             <>
-              <div className="wf-note-block">Buyer funds escrow. Seller starts only after funds are secured.</div>
-              <div className="wf-data-grid three">
-                <div className="wf-cell"><div className="wf-cell-label">Buyer</div><div className="wf-cell-value">{selectedJob.owner_id?.name || 'Buyer'}</div></div>
-                <div className="wf-cell"><div className="wf-cell-label">Escrow Amount</div><div className="wf-cell-value">GH¢ {Number(selectedJob.escrow_amount || 0).toLocaleString()}</div></div>
-                <div className="wf-cell"><div className="wf-cell-label">Seller</div><div className="wf-cell-value">{selectedJob.winning_bid_id?.seller_id?.name || 'Seller'}</div></div>
-              </div>
-              {isBuyer ? (
-                <button className="btn btn-primary" disabled={busyAction === 'escrow'} onClick={() => runAction('escrow', () => api.depositEscrow(id), 'Escrow funded')}>
-                  <ShieldCheck size={14} />
-                  {busyAction === 'escrow' ? 'Processing...' : 'Deposit to Escrow'}
-                </button>
-              ) : (
-                <div className="wf-note-block">Waiting for buyer to fund escrow.</div>
-              )}
-            </>
-          )}
-
-          {selectedJob.winning_bid_id && canSeeWorkflow && stage === 'in_progress' && (
-            <>
-              <div className="wf-data-grid two">
-                <div className="wf-cell"><div className="wf-cell-label">Escrow Status</div><div className="wf-cell-value">{selectedJob.escrow_deposited_at ? 'Secured' : 'Pending'}</div></div>
-                <div className="wf-cell"><div className="wf-cell-label">Work Started</div><div className="wf-cell-value">{selectedJob.work_started_at ? toDateText(selectedJob.work_started_at) : 'Not yet'}</div></div>
+              <div className="wf2-data-row">
+                <div className="wf2-data-cell">
+                  <div className="wf2-data-label">Escrow</div>
+                  <div className="wf2-data-val" style={{ color: 'var(--green)' }}>{selectedJob.escrow_deposited_at ? 'Secured' : 'Pending'}</div>
+                </div>
+                <div className="wf2-data-cell">
+                  <div className="wf2-data-label">Work started</div>
+                  <div className="wf2-data-val">{selectedJob.work_started_at ? new Date(selectedJob.work_started_at).toLocaleDateString() : 'Not yet'}</div>
+                </div>
+                <div className="wf2-data-cell">
+                  <div className="wf2-data-label">Deadline</div>
+                  <div className="wf2-data-val">{toDateText(selectedJob.contract_terms?.deadline)}</div>
+                </div>
               </div>
 
-              {selectedJob.progress_updates?.length > 0 && (
-                <div className="wf-stream">
-                  {selectedJob.progress_updates.map((entry, index) => (
-                    <div key={`${entry.createdAt}-${index}`} className="wf-stream-item">
-                      <Circle size={10} />
+              {/* Checklist */}
+              <div className="wf2-checklist">
+                {[
+                  { label: 'Work started at job site',        done: !!selectedJob.work_started_at },
+                  { label: 'Progress update posted',          done: (selectedJob.progress_updates || []).length > 0 },
+                  { label: 'Submission note prepared',        done: !!submitNote.trim() },
+                  { label: 'Work submitted for review',       done: !!selectedJob.work_submitted_at },
+                ].map((item, idx) => (
+                  <div key={idx} className={`wf2-check-row${item.done ? ' done' : ''}`}>
+                    <div className={`wf2-checkbox${item.done ? ' checked' : ''}`}>
+                      {item.done && <CircleCheckBig size={12} />}
+                    </div>
+                    <span className="wf2-check-text">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Progress stream */}
+              {(selectedJob.progress_updates || []).length > 0 && (
+                <div className="wf2-stream">
+                  {selectedJob.progress_updates.map((entry, idx) => (
+                    <div key={idx} className="wf2-stream-item">
+                      <div className="wf2-stream-dot" />
                       <span>{entry.message}</span>
                     </div>
                   ))}
                 </div>
               )}
 
-              {isSeller ? (
+              {isSeller && (
                 <>
-                  <div className="wf-action-row">
-                    <button className="btn btn-ghost" disabled={busyAction === 'startWork'} onClick={() => runAction('startWork', () => api.startWork(id), 'Work started')}>
-                      <Hammer size={14} />
-                      {busyAction === 'startWork' ? 'Updating...' : 'Mark Work Started'}
-                    </button>
+                  <div className="wf2-form-group">
+                    <label className="wf2-form-label">Progress update</label>
+                    <textarea className="wf2-form-textarea" rows={2} value={progressMessage} onChange={(e) => setProgressMessage(e.target.value)} placeholder="Share the current status with the client" />
                   </div>
 
-                  <div className="form-group" style={{ marginBottom: 10 }}>
-                    <label className="form-label">Progress Update</label>
-                    <textarea className="form-textarea" value={progressMessage} onChange={(e) => setProgressMessage(e.target.value)} placeholder="Share current status with buyer" />
-                  </div>
-                  <div className="wf-action-row">
-                    <button className="btn btn-ghost" disabled={!progressMessage.trim() || busyAction === 'progress'} onClick={() => runAction('progress', () => api.addProgressUpdate(id, { message: progressMessage.trim() }).then(() => setProgressMessage('')), 'Progress posted')}>
-                      {busyAction === 'progress' ? 'Posting...' : 'Post Update'}
-                    </button>
+                  <div className="wf2-form-group">
+                    <label className="wf2-form-label">Submission note</label>
+                    <textarea className="wf2-form-textarea" rows={3} value={submitNote} onChange={(e) => setSubmitNote(e.target.value)} placeholder="Describe exactly what was delivered" />
                   </div>
 
-                  <div className="form-group" style={{ marginTop: 10 }}>
-                    <label className="form-label">Submission Note</label>
-                    <textarea className="form-textarea" value={submitNote} onChange={(e) => setSubmitNote(e.target.value)} placeholder="Describe exactly what was delivered" />
+                  <div className="wf2-form-group">
+                    <label className="wf2-form-label">Deliverable URL <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>(optional)</span></label>
+                    <input className="wf2-form-input" value={deliverableUrl} onChange={(e) => setDeliverableUrl(e.target.value)} placeholder="https://…" />
                   </div>
-                  <div className="form-group" style={{ marginBottom: 10 }}>
-                    <label className="form-label">Deliverable URL</label>
-                    <input className="form-input" value={deliverableUrl} onChange={(e) => setDeliverableUrl(e.target.value)} placeholder="https://..." />
+
+                  <div className="wf2-actions">
+                    {!selectedJob.work_started_at && (
+                      <button className="wf2-action-sec" disabled={busyAction === 'startWork'}
+                        onClick={() => runAction('startWork', () => api.startWork(id), 'Work marked as started')}>
+                        <Hammer size={14} />
+                        {busyAction === 'startWork' ? 'Updating...' : 'Mark Work Started'}
+                      </button>
+                    )}
+                    {progressMessage.trim() && (
+                      <button className="wf2-action-sec" disabled={busyAction === 'progress'}
+                        onClick={() => runAction('progress', () => api.addProgressUpdate(id, { message: progressMessage.trim() }).then(() => setProgressMessage('')), 'Update posted')}>
+                        {busyAction === 'progress' ? 'Posting...' : 'Post Update'}
+                      </button>
+                    )}
+                    <button className="wf2-action-primary" disabled={busyAction === 'submitWork' || !submitNote.trim()}
+                      onClick={() => runAction('submitWork', () => api.submitWork(id, { note: submitNote.trim(), deliverable_url: deliverableUrl.trim() }).then(() => { setSubmitNote(''); setDeliverableUrl('') }), 'Work submitted for review')}>
+                      <ClipboardCheck size={14} />
+                      {busyAction === 'submitWork' ? 'Submitting...' : 'Submit Work'}
+                    </button>
                   </div>
-                  <button className="btn btn-primary" disabled={busyAction === 'submitWork'} onClick={() => runAction('submitWork', () => api.submitWork(id, { note: submitNote.trim(), deliverable_url: deliverableUrl.trim() }).then(() => { setSubmitNote(''); setDeliverableUrl('') }), 'Work submitted for review')}>
-                    <ClipboardCheck size={14} />
-                    {busyAction === 'submitWork' ? 'Submitting...' : 'Submit Work'}
-                  </button>
                 </>
-              ) : (
-                <div className="wf-note-block">Seller is currently preparing delivery.</div>
+              )}
+
+              {!isSeller && (
+                <div className="wf2-info-note" style={{ marginTop: 8 }}>
+                  Provider is currently working on the delivery. You will be notified when work is submitted for your review.
+                </div>
               )}
             </>
           )}
 
-          {selectedJob.winning_bid_id && canSeeWorkflow && stage === 'review' && (
+          {/* ── Review / Dispute stage ───────────────────────── */}
+          {canSeeWorkflow && (stage === 'review' || stage === 'dispute') && (
             <>
-              <div className="wf-data-grid three">
-                <div className="wf-cell"><div className="wf-cell-label">Review Window</div><div className="wf-cell-value">{reviewHoursLeft === null ? 'N/A' : `${reviewHoursLeft}h left`}</div></div>
-                <div className="wf-cell"><div className="wf-cell-label">Revisions Used</div><div className="wf-cell-value">{selectedJob.revision_rounds_used || 0} / 1</div></div>
-                <div className="wf-cell"><div className="wf-cell-label">Submitted At</div><div className="wf-cell-value">{toDateText(selectedJob.work_submitted_at)}</div></div>
+              <div className="wf2-data-row">
+                <div className="wf2-data-cell">
+                  <div className="wf2-data-label">Review window</div>
+                  <div className="wf2-data-val">{reviewHoursLeft === null ? 'N/A' : `${reviewHoursLeft}h left`}</div>
+                </div>
+                <div className="wf2-data-cell">
+                  <div className="wf2-data-label">Revisions used</div>
+                  <div className="wf2-data-val">{selectedJob.revision_rounds_used || 0} / 1</div>
+                </div>
+                <div className="wf2-data-cell">
+                  <div className="wf2-data-label">Submitted</div>
+                  <div className="wf2-data-val">{selectedJob.work_submitted_at ? new Date(selectedJob.work_submitted_at).toLocaleDateString() : 'N/A'}</div>
+                </div>
               </div>
 
-              <div className="wf-note-block">{selectedJob.deliverable_note || 'No deliverable note provided.'}</div>
-              <div className="wf-link-row">Deliverable URL: {selectedJob.deliverable_url || 'N/A'}</div>
-
-              {isBuyer ? (
+              {isDispute ? (
+                <div className="wf2-info-note" style={{ borderLeftColor: '#c0392b', background: '#fdf0ef', color: 'var(--text)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <AlertTriangle size={14} />
+                    <strong>Dispute Under Manual Review</strong>
+                  </div>
+                  <div>Reason: {selectedJob.dispute_reason || 'No reason provided'}</div>
+                  <div style={{ marginTop: 4, fontSize: 11, color: 'var(--muted)' }}>Raised: {toDateText(selectedJob.dispute_raised_at)}</div>
+                </div>
+              ) : (
                 <>
-                  <div className="wf-action-row">
-                    <button className="btn btn-success" disabled={busyAction === 'approve'} onClick={() => runAction('approve', () => api.approveWork(id), 'Approved and payment released')}>
-                      <CircleCheckBig size={14} />
-                      {busyAction === 'approve' ? 'Approving...' : 'Approve and Release'}
-                    </button>
+                  <div className="wf2-info-note">
+                    <strong>Deliverable note:</strong> {selectedJob.deliverable_note || 'No note provided.'}
+                    {selectedJob.deliverable_url && (
+                      <div style={{ marginTop: 4, wordBreak: 'break-all' }}>
+                        URL: <a href={selectedJob.deliverable_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{selectedJob.deliverable_url}</a>
+                      </div>
+                    )}
                   </div>
 
-                  {Number(selectedJob.revision_rounds_used || 0) < 1 && (
+                  {isBuyer ? (
                     <>
-                      <div className="form-group" style={{ marginTop: 12 }}>
-                        <label className="form-label">Revision Request</label>
-                        <textarea className="form-textarea" value={revisionReason} onChange={(e) => setRevisionReason(e.target.value)} placeholder="Describe required fixes clearly" />
-                      </div>
-                      <div className="wf-action-row">
-                        <button className="btn btn-ghost" disabled={busyAction === 'revision'} onClick={() => runAction('revision', () => api.requestRevision(id, { reason: revisionReason.trim() }).then(() => setRevisionReason('')), 'Revision requested')}>
-                          {busyAction === 'revision' ? 'Sending...' : 'Request Revision'}
+                      <div className="wf2-actions" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
+                        <button className="wf2-action-primary green" disabled={busyAction === 'approve'}
+                          onClick={() => runAction('approve', () => api.approveWork(id), 'Work approved and payment released')}>
+                          <CircleCheckBig size={14} />
+                          {busyAction === 'approve' ? 'Approving...' : 'Approve and Release Payment'}
                         </button>
+
+                        {Number(selectedJob.revision_rounds_used || 0) < 1 && (
+                          <div className="wf2-sub-block">
+                            <div className="wf2-sub-block-title">Request a revision</div>
+                            <textarea className="wf2-form-textarea" rows={2} value={revisionReason} onChange={(e) => setRevisionReason(e.target.value)} placeholder="Describe the required fixes clearly" />
+                            <button className="wf2-action-sec" style={{ marginTop: 8 }} disabled={busyAction === 'revision' || !revisionReason.trim()}
+                              onClick={() => runAction('revision', () => api.requestRevision(id, { reason: revisionReason.trim() }).then(() => setRevisionReason('')), 'Revision requested')}>
+                              {busyAction === 'revision' ? 'Sending...' : 'Request Revision'}
+                            </button>
+                          </div>
+                        )}
+
+                        <div className="wf2-sub-block">
+                          <div className="wf2-sub-block-title">Escalate to dispute</div>
+                          <textarea className="wf2-form-textarea" rows={2} value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} placeholder="Reason for escalating this job to dispute" />
+                          <button className="wf2-action-danger" style={{ marginTop: 8 }} disabled={busyAction === 'dispute' || !disputeReason.trim()}
+                            onClick={() => runAction('dispute', () => api.raiseDispute(id, { reason: disputeReason.trim() }).then(() => setDisputeReason('')), 'Dispute raised')}>
+                            <AlertTriangle size={14} />
+                            {busyAction === 'dispute' ? 'Submitting...' : 'Raise Dispute'}
+                          </button>
+                        </div>
                       </div>
                     </>
+                  ) : (
+                    <div className="wf2-info-note">
+                      Waiting for the client to review and approve your submission within the review window.
+                    </div>
                   )}
-
-                  <div className="form-group" style={{ marginTop: 12 }}>
-                    <label className="form-label">Dispute Reason</label>
-                    <textarea className="form-textarea" value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} placeholder="Provide reason if escalating to dispute" />
-                  </div>
-                  <div className="wf-action-row">
-                    <button className="btn btn-ghost" disabled={busyAction === 'dispute'} onClick={() => runAction('dispute', () => api.raiseDispute(id, { reason: disputeReason.trim() }).then(() => setDisputeReason('')), 'Dispute raised')}>
-                      <AlertTriangle size={14} />
-                      {busyAction === 'dispute' ? 'Submitting...' : 'Raise Dispute'}
-                    </button>
-                  </div>
                 </>
-              ) : (
-                <div className="wf-note-block">Waiting for buyer decision within the review window.</div>
               )}
             </>
           )}
 
-          {selectedJob.winning_bid_id && canSeeWorkflow && stage === 'dispute' && (
-            <div className="wf-note-block wf-note-danger">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <AlertTriangle size={15} />
-                <strong>Dispute Under Manual Review</strong>
-              </div>
-              <div>Reason: {selectedJob.dispute_reason || 'No reason provided'}</div>
-              <div style={{ marginTop: 6 }}>Raised at: {toDateText(selectedJob.dispute_raised_at)}</div>
-            </div>
+          {/* ── Reviews step ────────────────────────────────── */}
+          {displayStep === 5 && (
+            <>
+              {myReview ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div className="wf2-data-row">
+                    <div className="wf2-data-cell">
+                      <div className="wf2-data-label">Your rating</div>
+                      <div className="wf2-data-val" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {[1,2,3,4,5].map((s) => (
+                          <Star key={s} size={14} fill={s <= myReview.rating ? 'var(--accent)' : 'none'} stroke="var(--accent)" />
+                        ))}
+                        <span style={{ marginLeft: 4 }}>{myReview.rating} / 5</span>
+                      </div>
+                    </div>
+                    <div className="wf2-data-cell">
+                      <div className="wf2-data-label">Reviewed</div>
+                      <div className="wf2-data-val">{toDateText(myReview.createdAt)}</div>
+                    </div>
+                    <div className="wf2-data-cell">
+                      <div className="wf2-data-label">For</div>
+                      <div className="wf2-data-val" style={{ textTransform: 'capitalize' }}>{reviewTargetLabel}</div>
+                    </div>
+                  </div>
+                  {myReview.comment && (
+                    <div className="wf2-info-note" style={{ borderLeftColor: 'var(--accent)', background: '#fdf8ee' }}>
+                      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Your comment</div>
+                      <div>{myReview.comment}</div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="wf2-info-note">No review submitted yet.</div>
+              )}
+            </>
           )}
 
-          {selectedJob.winning_bid_id && canSeeWorkflow && stage === 'completed' && (
-            <div className="wf-note-block wf-note-success">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <CircleCheckBig size={15} />
-                <strong>Job Completed</strong>
+          {/* ── Completed stage ──────────────────────────────── */}
+          {displayStep !== 5 && stage === 'completed' && (
+            <>
+              <div className="wf2-data-row">
+                <div className="wf2-data-cell">
+                  <div className="wf2-data-label">Amount released</div>
+                  <div className="wf2-data-val" style={{ color: 'var(--green)' }}>GH¢ {Number(agreedPrice).toLocaleString()}</div>
+                </div>
+                <div className="wf2-data-cell">
+                  <div className="wf2-data-label">Released at</div>
+                  <div className="wf2-data-val">{toDateText(selectedJob.payment_released_at || selectedJob.completion_date)}</div>
+                </div>
+                <div className="wf2-data-cell">
+                  <div className="wf2-data-label">Status</div>
+                  <div className="wf2-data-val" style={{ color: 'var(--green)' }}>Completed</div>
+                </div>
               </div>
-              <div>Payment released at: {toDateText(selectedJob.payment_released_at || selectedJob.completion_date)}</div>
-              <div className="wf-action-row" style={{ marginTop: 10, marginBottom: 0 }}>
-                <button className="btn btn-primary" onClick={() => navigate(`/rating?jobId=${id}`)}>
-                  Leave Rating
-                </button>
+              <div className="wf2-info-note" style={{ borderLeftColor: 'var(--green)', background: '#ecfdf5' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <CircleCheckBig size={14} />
+                  <strong>Job complete. Payment has been released to the provider.</strong>
+                </div>
               </div>
-            </div>
+              <div className="wf2-actions">
+                {myReview ? (
+                  <div className="wf2-info-note" style={{ margin: 0, width: '100%' }}>
+                    <strong>Review submitted.</strong>{' '}
+                    You rated this {reviewTargetLabel} {Number(myReview.rating || 0)} / 5 on {toDateText(myReview.createdAt)}.
+                  </div>
+                ) : (
+                  <div className="wf2-sub-block" style={{ width: '100%' }}>
+                    <div className="wf2-sub-block-title">Leave a review for the {reviewTargetLabel}</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                      {[1, 2, 3, 4, 5].map((score) => (
+                        <button
+                          key={score}
+                          type="button"
+                          className="wf2-action-sec"
+                          onClick={() => setReviewRating(score)}
+                          style={{
+                            minWidth: 48,
+                            justifyContent: 'center',
+                            borderColor: score <= reviewRating ? 'var(--accent)' : undefined,
+                            color: score <= reviewRating ? 'var(--accent)' : undefined,
+                          }}
+                        >
+                          <Star size={12} fill={score <= reviewRating ? 'currentColor' : 'none'} />
+                          {score}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      className="wf2-form-textarea"
+                      rows={3}
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value)}
+                      placeholder="Share your experience (optional)"
+                    />
+                    <div className="wf2-actions" style={{ marginTop: 10 }}>
+                      <button
+                        className="wf2-action-primary"
+                        disabled={reviewSubmitting || reviewsLoading}
+                        onClick={submitInlineReview}
+                      >
+                        {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
           )}
-        </section>
 
-        <aside className="wf-section">
-          <div className="wf-card-title" style={{ marginBottom: 12 }}>Job Summary</div>
-          <div className="info-row"><span className="info-label">Category</span><span>{selectedJob.category}</span></div>
-          <div className="info-row"><span className="info-label">Budget Cap</span><span>GH¢ {Number(selectedJob.budget || 0).toLocaleString()}</span></div>
-          <div className="info-row"><span className="info-label">Agreed Price</span><span>GH¢ {Number(selectedJob.escrow_amount || selectedJob.winning_bid_id?.amount || 0).toLocaleString()}</span></div>
-          <div className="info-row"><span className="info-label">Buyer</span><span>{selectedJob.owner_id?.name || 'N/A'}</span></div>
-          <div className="info-row"><span className="info-label">Seller</span><span>{selectedJob.winning_bid_id?.seller_id?.name || 'N/A'}</span></div>
-          <div className="info-row"><span className="info-label">Status</span><span>{selectedJob.status}</span></div>
-          <div className="info-row"><span className="info-label">Created</span><span>{toDateText(selectedJob.createdAt)}</span></div>
-        </aside>
+        </div>
+
+        {/* Bottom nav */}
+        <div className="wf2-card-footer">
+          <button
+            type="button"
+            className="wf2-nav-btn"
+            onClick={() => {
+              if (viewingStep !== null) setViewingStep(viewingStep > 0 ? viewingStep - 1 : null)
+              else navigate(-1)
+            }}
+          >
+            ← Back
+          </button>
+          <span className="wf2-step-count">Step {displayStep + 1} of {WF_STEPS.length}</span>
+          <button
+            type="button"
+            className="wf2-nav-btn"
+            disabled={!(myReview && displayStep === 4)}
+            onClick={() => setViewingStep(5)}
+          >
+            Next →
+          </button>
+        </div>
       </div>
+
     </div>
   )
 }

@@ -6,7 +6,16 @@ import User from '../models/User.js';
 import { authMiddleware, optionalAuth } from '../middleware/auth.js';
 
 const router = express.Router();
-const ALLOWED_CATEGORIES = ['Home Repairs', 'Tutoring', 'Photography', 'Cleaning', 'Delivery', 'Design & Print'];
+const ALLOWED_CATEGORIES = [
+  'Home Repairs',
+  'Tutoring',
+  'Photography',
+  'Cleaning',
+  'Delivery',
+  'Design & Print',
+  'Catering',
+  'IT & Tech Support',
+];
 const INTAKE_FIELDS_BY_CATEGORY = {
   'Home Repairs': ['location', 'issue_type', 'access_window'],
   Tutoring: ['subject', 'level', 'sessions_per_week'],
@@ -14,6 +23,8 @@ const INTAKE_FIELDS_BY_CATEGORY = {
   Cleaning: ['property_size', 'frequency', 'supplies_provided'],
   Delivery: ['pickup_location', 'dropoff_location', 'load_type'],
   'Design & Print': ['asset_type', 'quantity', 'print_deadline'],
+  Catering: ['guest_count', 'event_type', 'location'],
+  'IT & Tech Support': ['service_type', 'location', 'timeline'],
 };
 
 const REVIEW_WINDOW_HOURS = 48;
@@ -159,8 +170,9 @@ router.get('/', optionalAuth, [
 
     const { category, status, page = 1, limit = 20, search } = req.query;
 
-    const filter = { status: status || 'open' };
-    if (filter.status === 'open') {
+    const resolvedStatus = status || 'open';
+    const filter = resolvedStatus === 'all' ? {} : { status: resolvedStatus };
+    if (resolvedStatus === 'open') {
       filter.deadline = { $gte: new Date() };
     }
     if (category) filter.category = category;
@@ -417,8 +429,12 @@ router.put('/:id/contract', authMiddleware, [
       return res.status(404).json({ error: 'Job not found' });
     }
 
-    if (job.workflow_stage !== 'contract') {
+    const preEditStages = [null, undefined, 'bidding', 'contract']
+    if (!preEditStages.includes(job.workflow_stage)) {
       return res.status(400).json({ error: 'Contract can only be edited during contract stage' });
+    }
+    if (job.workflow_stage !== 'contract') {
+      job.workflow_stage = 'contract'
     }
 
     const participant = await resolveParticipantContext(job, req.userId);
@@ -486,8 +502,12 @@ router.post('/:id/contract/confirm', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ error: 'No accepted bid for this job yet' });
     }
 
-    if (job.workflow_stage !== 'contract') {
+    const preContractStages = [null, undefined, 'bidding', 'contract']
+    if (!preContractStages.includes(job.workflow_stage)) {
       return res.status(400).json({ error: 'Contract confirmation is not available in this stage' });
+    }
+    if (job.workflow_stage !== 'contract') {
+      job.workflow_stage = 'contract'
     }
 
     const participant = await resolveParticipantContext(job, req.userId);

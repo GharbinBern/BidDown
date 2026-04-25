@@ -37,6 +37,7 @@ export const api = {
   login: (data) => client.post('/auth/login', data),
   getMe: () => client.get('/auth/me'),
   getUserProfile: (userId) => client.get(`/auth/users/${userId}`),
+  updateMyProfile: (data) => client.put('/auth/me/profile', data),
 
   // Jobs
   getJobs: (params) => client.get('/jobs', { params }),

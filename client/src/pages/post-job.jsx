@@ -222,8 +222,6 @@ export default function PostJobPage() {
     <div className="jp-page">
       <div className="jp-topbar">
         <div className="jp-top-left">
-          <button type="button" className="jp-link" onClick={() => navigate('/')}>Home</button>
-          <span className="jp-sep">/</span>
           <span>Post a Job</span>
         </div>
         <div className="jp-draft">Draft auto-saved {savedAt ? `${savedAt}` : 'now'}</div>

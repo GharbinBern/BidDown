@@ -501,13 +501,8 @@ export default function BrowsePage() {
 
   return (
     <div className="br-shell">
-      {/* ── breadcrumb + top search ─── */}
+      {/* ── top search ─── */}
       <div className="br-topbar">
-        <nav className="br-breadcrumb">
-          <button type="button" className="br-bc-link" onClick={() => navigate('/')}>Home</button>
-          <span className="br-bc-sep">›</span>
-          <span className="br-bc-current">Browse Requests</span>
-        </nav>
         <div className="br-topsearch-wrap">
           <input
             type="text"

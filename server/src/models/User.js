@@ -23,6 +23,22 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  phone: {
+    type: String,
+    default: '',
+  },
+  city: {
+    type: String,
+    default: 'Accra',
+  },
+  neighbourhood: {
+    type: String,
+    default: '',
+  },
+  primaryCategory: {
+    type: String,
+    default: 'Home Repairs',
+  },
 
   // Role & Verification
   roles: {

@@ -52,14 +52,12 @@ export default function DashboardPage() {
     const load = async () => {
       setLoading(true)
       try {
-        const [openRes, closedRes, completedRes, bidsRes] = await Promise.all([
-          api.getJobs({ status: 'open', limit: 100 }),
-          api.getJobs({ status: 'closed', limit: 100 }),
-          api.getJobs({ status: 'completed', limit: 100 }),
+        const [allJobsRes, bidsRes] = await Promise.all([
+          api.getJobs({ status: 'all', limit: 300 }),
           api.getMyBids(),
         ])
 
-        setJobs([...(openRes.data.jobs || []), ...(closedRes.data.jobs || []), ...(completedRes.data.jobs || [])])
+        setJobs(allJobsRes.data.jobs || [])
         setMyBids(bidsRes.data || [])
       } catch (err) {
         toast.error(err?.response?.data?.error || 'Failed to load dashboard')
@@ -176,28 +174,6 @@ export default function DashboardPage() {
 
   return (
     <div className="main dd-shell">
-      <div className="dd-banner">
-        <div className="dd-banner-copy">{topMessage}</div>
-        {isBuyer && isSeller && (
-          <div className="dd-view-toggle">
-            <button
-              type="button"
-              className={`dd-toggle-btn ${roleMode === 'buyer' ? 'active' : ''}`}
-              onClick={() => setActiveRole('buyer')}
-            >
-              Client view
-            </button>
-            <button
-              type="button"
-              className={`dd-toggle-btn ${roleMode === 'seller' ? 'active' : ''}`}
-              onClick={() => setActiveRole('seller')}
-            >
-              Provider view
-            </button>
-          </div>
-        )}
-      </div>
-
       <div className="dd-layout">
         <aside className="dd-nav-card">
           <div className="dd-nav-group">
