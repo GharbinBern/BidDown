@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
   AlertTriangle,
@@ -10,7 +9,9 @@ import {
   Clock3,
   FileSignature,
   Hammer,
+  MapPin,
   ShieldCheck,
+  Star,
 } from 'lucide-react'
 import { api } from '../api'
 import { useAuthStore, useJobsStore } from '../store'
@@ -71,30 +72,544 @@ function StageRail({ stage, isDispute }) {
   )
 }
 
-export default function JobDetailPage() {
-  const { id } = useParams()
+/* ── bidding-view helpers ──────────────────────────────────── */
+function msRemaining(deadline) {
+  return Math.max(0, new Date(deadline).getTime() - Date.now())
+}
+
+function formatHMS(ms) {
+  if (ms <= 0) return { h: '--', m: '--', s: '--', ended: true }
+  const totalSec = Math.floor(ms / 1000)
+  const h = Math.floor(totalSec / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  const s = totalSec % 60
+  return { h: String(h).padStart(2, '0'), m: String(m).padStart(2, '0'), s: String(s).padStart(2, '0'), ended: false }
+}
+
+function timeAgo(dateStr) {
+  const diffMin = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000)
+  if (diffMin < 1)  return 'just now'
+  if (diffMin < 60) return `${diffMin} min ago`
+  const diffH = Math.floor(diffMin / 60)
+  if (diffH < 24)   return `${diffH}h ago`
+  return `${Math.floor(diffH / 24)}d ago`
+}
+
+function nameInitials(name) {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  return parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase()
+}
+
+const AVATAR_COLORS = ['#2563eb', '#16a34a', '#d97706', '#9333ea', '#0891b2', '#e11d48', '#6366f1', '#0d9488']
+function avatarBg(name) {
+  if (!name) return AVATAR_COLORS[0]
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff
+  return AVATAR_COLORS[h % AVATAR_COLORS.length]
+}
+
+function normalizeUserId(value) {
+  if (!value) return null
+  if (typeof value === 'string') return value
+  if (typeof value === 'object') {
+    if (typeof value._id === 'string') return value._id
+    if (typeof value.$oid === 'string') return value.$oid
+    if (typeof value.toString === 'function') {
+      const text = value.toString()
+      if (text && text !== '[object Object]') return text
+    }
+  }
+  return null
+}
+
+function AvatarCircle({ name, size = 36 }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%', background: avatarBg(name),
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: '#fff', fontWeight: 700, fontSize: size < 32 ? 11 : 14, flexShrink: 0,
+    }}>
+      {nameInitials(name)}
+    </div>
+  )
+}
+
+function StarRow({ value }) {
+  const v = Number(value) || 0
+  return (
+    <span style={{ display: 'inline-flex', gap: 1, alignItems: 'center' }}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star key={n} size={11}
+          fill={n <= Math.round(v) ? '#f59e0b' : 'none'}
+          stroke={n <= Math.round(v) ? '#f59e0b' : '#aaa'}
+          strokeWidth={1.5} />
+      ))}
+    </span>
+  )
+}
+
+function getIntakeLocation(job) {
+  const d = job.intake_details || {}
+  return d.location || d.pickup_location || d.event_location || null
+}
+
+function getIntakeTags(job) {
+  const d = job.intake_details || {}
+  return Object.values(d).filter((v) => typeof v === 'string' && v.length > 0 && v.length < 60).slice(0, 6)
+}
+
+function getRequirements(job) {
+  const d = job.intake_details || {}
+  const raw = d.requirements || d.requirements_for_bidders || d.bidder_requirements || d.notes || job.requirements || ''
+  if (Array.isArray(raw) && raw.length) return raw.map(String).filter(Boolean)
+  if (typeof raw === 'string' && raw.trim()) {
+    return raw.split(/\n|•/).map((s) => s.replace(/^[-–—*]\s*/, '').trim()).filter(Boolean)
+  }
+  // category-specific defaults when no explicit requirements are stored
+  const DEFAULTS = {
+    'Home Repairs': [
+      'Include photos of past similar work in your bid note',
+      'State your availability for a same-day or next-day visit',
+      'List all labour costs in your bid — materials to be discussed separately',
+      'Must be able to provide a written quote before work begins',
+    ],
+    'Tutoring': [
+      'Mention the subject and student level you specialise in',
+      'State whether sessions are in-person or online',
+      'Include your available days and hours',
+      'Share any teaching certifications or relevant experience',
+    ],
+    'Photography': [
+      'Include a link to your portfolio in the bid note',
+      'Confirm you own the equipment needed for this shoot type',
+      'State your turnaround time for edited deliverables',
+      'Specify whether travel to the venue is included in your bid',
+    ],
+    'Cleaning': [
+      'Confirm whether you supply your own cleaning products',
+      'State the number of cleaners you will bring',
+      'Include your availability for the requested frequency',
+      'Provide proof of previous cleaning contracts if available',
+    ],
+    'Delivery': [
+      'State the type and size of vehicle you will use',
+      'Confirm you can handle the described load safely',
+      'Include any fuel or handling surcharges in your bid',
+      'Specify whether you offer real-time delivery tracking',
+    ],
+    'Design & Print': [
+      'Share samples of similar design work in your note',
+      'Confirm you can meet the stated print deadline',
+      'State the number of revision rounds included in your bid',
+      'Clarify whether print delivery to the client is included',
+    ],
+  }
+  return DEFAULTS[job.category] || []
+}
+
+function Countdown({ deadline }) {
+  const [tick, setTick] = useState(() => formatHMS(msRemaining(deadline)))
+  useEffect(() => {
+    const id = setInterval(() => setTick(formatHMS(msRemaining(deadline))), 1000)
+    return () => clearInterval(id)
+  }, [deadline])
+  return (
+    <div className={`jd-countdown${tick.ended ? ' ended' : ''}`}>
+      <span className="jd-cd-num">{tick.h}</span>
+      <span className="jd-cd-label">HRS</span>
+      <span className="jd-cd-sep">:</span>
+      <span className="jd-cd-num">{tick.m}</span>
+      <span className="jd-cd-label">MIN</span>
+      <span className="jd-cd-sep">:</span>
+      <span className="jd-cd-num">{tick.s}</span>
+      <span className="jd-cd-label">SEC</span>
+    </div>
+  )
+}
+
+function BiddingView({ job, bids, myBid, isAuth, onBidSubmit }) {
   const navigate = useNavigate()
-  const { user } = useAuthStore()
+  const ms       = msRemaining(job.deadline)
+  const isUrgent = ms > 0 && ms < 7_200_000
+  const isSoon   = ms > 0 && ms < 86_400_000
+  const location = getIntakeLocation(job)
+  const tags     = getIntakeTags(job)
+  const reqs     = getRequirements(job)
+
+  const sortedBids = useMemo(() => [...bids].sort((a, b) => Number(a.amount) - Number(b.amount)), [bids])
+  const lowestAmt  = sortedBids[0] ? Number(sortedBids[0].amount) : null
+
+  const [amount, setAmount]         = useState('')
+  const [availability, setAvail]    = useState('')
+  const [note, setNote]             = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const parsedAmt   = Number(amount)
+  const minRequired = lowestAmt !== null ? lowestAmt - 1 : Number(job.budget)
+  const amountValid = amount !== '' && parsedAmt > 0 && parsedAmt <= minRequired
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!isAuth) { navigate('/login'); return }
+    if (!amountValid) { toast.error(`Bid must be GH¢ ${minRequired.toLocaleString()} or less`); return }
+    setSubmitting(true)
+    try {
+      await onBidSubmit({ job_id: job._id, amount: parsedAmt, note: note.trim(), availability: availability.trim() })
+      toast.success('Bid placed successfully!')
+      setAmount(''); setAvail(''); setNote('')
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to place bid')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const owner = job.owner_id || {}
+  const ownerId = normalizeUserId(owner._id || owner)
+  const memberSince = owner.createdAt
+    ? new Date(owner.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : null
+  const ownerLocation = getIntakeLocation(job)
+  const biddingLive = ms > 0 && job.status === 'open'
+
+  return (
+    <div className="jd-shell">
+      <div className="jd-topbar">
+        <nav className="jd-breadcrumb">
+          <button type="button" className="jd-bc-btn" onClick={() => navigate('/')}>Home</button>
+          <span className="jd-bc-sep">›</span>
+          <button type="button" className="jd-bc-btn" onClick={() => navigate('/browse')}>Browse</button>
+          <span className="jd-bc-sep">›</span>
+          <button type="button" className="jd-bc-btn" onClick={() => navigate(`/browse?category=${encodeURIComponent(job.category || '')}`)}>
+            {job.category || 'All'}
+          </button>
+          <span className="jd-bc-sep">›</span>
+          <span className="jd-bc-current">{(job.title || '').slice(0, 45)}{(job.title || '').length > 45 ? '…' : ''}</span>
+        </nav>
+        {biddingLive && (
+          <div className="jd-live-badge">
+            <span className="jd-live-dot" />
+            Bidding Live
+          </div>
+        )}
+      </div>
+
+      <div className="jd-body">
+        {/* ── left column ─── */}
+        <div className="jd-main">
+
+          <div className="jd-header-card">
+            <div className="jd-header-top">
+              <div className="jd-cats">
+                <span className="jd-cat">{job.category || 'General'}</span>
+                {job.subcategory && <><span className="jd-cat-dot"> · </span><span className="jd-cat">{job.subcategory}</span></>}
+              </div>
+              {location && <div className="jd-location"><MapPin size={13} strokeWidth={2} />{location}</div>}
+              {isUrgent
+                ? <span className="jd-status-badge urgent">🔥 Closing Soon</span>
+                : isSoon
+                ? <span className="jd-status-badge soon">Closing Soon</span>
+                : ms > 0
+                ? <span className="jd-status-badge open">Open</span>
+                : <span className="jd-status-badge closed">Closed</span>}
+            </div>
+
+            <h1 className="jd-title">{job.title}</h1>
+
+            <div className="jd-stats-grid">
+              <div className="jd-stat-cell">
+                <div className="jd-stat-label">BUDGET CEILING</div>
+                <div className="jd-stat-val blue">GH¢ {Number(job.budget).toLocaleString()}</div>
+                <div className="jd-stat-sub">Max client will pay</div>
+              </div>
+              <div className="jd-stat-cell">
+                <div className="jd-stat-label">LOWEST BID SO FAR</div>
+                {lowestAmt !== null ? (
+                  <>
+                    <div className="jd-stat-val green">GH¢ {lowestAmt.toLocaleString()}</div>
+                    <div className="jd-stat-sub">Current winning bid</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="jd-stat-val muted">—</div>
+                    <div className="jd-stat-sub">No bids yet</div>
+                  </>
+                )}
+              </div>
+              <div className="jd-stat-cell">
+                <div className="jd-stat-label">TOTAL BIDS</div>
+                <div className="jd-stat-val">{job.bids_count || bids.length || 0}</div>
+                <div className="jd-stat-sub">From {job.bids_count || bids.length || 0} providers</div>
+              </div>
+              <div className="jd-stat-cell no-border">
+                <div className="jd-stat-label">CLOSES IN</div>
+                <Countdown deadline={job.deadline} />
+              </div>
+            </div>
+
+            {tags.length > 0 && (
+              <div className="jd-tags">
+                {tags.map((t, i) => <span key={i} className="jd-tag">{t}</span>)}
+              </div>
+            )}
+          </div>
+
+          <div className="jd-section-card">
+            <div className="jd-section-title">Job description</div>
+            <p className="jd-desc-text">{job.description || 'No description provided.'}</p>
+          </div>
+
+          {reqs.length > 0 && (
+            <div className="jd-section-card">
+              <div className="jd-section-title">Requirements for bidders</div>
+              <ul className="jd-reqs-list">
+                {reqs.map((r, i) => <li key={i} className="jd-req-item">{r}</li>)}
+              </ul>
+            </div>
+          )}
+
+          <div className="jd-section-card">
+            <div className="jd-section-title">Live bid ladder — {job.bids_count || bids.length || 0} bids</div>
+            <div className="jd-ladder-ceiling">
+              <span>Budget ceiling set by client</span>
+              <span className="jd-ladder-ceiling-amt">GH¢ {Number(job.budget).toLocaleString()}</span>
+            </div>
+            {sortedBids.length === 0 ? (
+              <div className="jd-ladder-empty">No bids yet — be the first!</div>
+            ) : (
+              <div className="jd-ladder">
+                {sortedBids.slice(0, isAuth ? sortedBids.length : Math.min(5, sortedBids.length)).map((bid, i) => {
+                  const seller = bid.seller_id || {}
+                  const sellerId = normalizeUserId(seller._id || seller)
+                  const isWinner = i === 0
+                  return (
+                    <div key={bid._id || i} className={`jd-ladder-row${isWinner ? ' winner' : ''}`}>
+                      <span className="jd-ladder-rank">{i + 1}</span>
+                      <button
+                        type="button"
+                        className="jd-profile-link"
+                        onClick={() => sellerId && navigate(`/providers/${sellerId}`)}
+                        title={sellerId ? 'View provider profile' : 'Profile unavailable'}
+                        disabled={!sellerId}
+                      >
+                        <AvatarCircle name={seller.name} size={34} />
+                      </button>
+                      <div className="jd-ladder-info">
+                        <button
+                          type="button"
+                          className="jd-ladder-name jd-profile-link"
+                          onClick={() => sellerId && navigate(`/providers/${sellerId}`)}
+                          title={sellerId ? 'View provider profile' : 'Profile unavailable'}
+                          disabled={!sellerId}
+                        >
+                          {seller.name || 'Provider'}
+                          {isWinner && <span className="jd-winner-dot" />}
+                        </button>
+                        <div className="jd-ladder-stars">
+                          <StarRow value={seller.average_rating} />
+                          <span className="jd-ladder-rating"> {Number(seller.average_rating || 0).toFixed(1)}</span>
+                          {seller.total_jobs_completed > 0 && (
+                            <span className="jd-ladder-jobs"> · {seller.total_jobs_completed} jobs</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="jd-ladder-right">
+                        <div className={`jd-ladder-amt${isWinner ? ' green' : ''}`}>GH¢ {Number(bid.amount).toLocaleString()}</div>
+                        <div className="jd-ladder-ago">{timeAgo(bid.createdAt)}</div>
+                      </div>
+                    </div>
+                  )
+                })}
+                {!isAuth && sortedBids.length > 5 && (
+                  <div className="jd-ladder-hidden">
+                    {sortedBids.length - 5} more bids hidden ·{' '}
+                    <button type="button" onClick={() => navigate('/login')}>sign in to see full ladder</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── right sidebar ─── */}
+        <aside className="jd-sidebar">
+          <div className="jd-bid-card">
+            <div className="jd-bid-card-title">Place your bid</div>
+            <p className="jd-bid-subtext">
+              {lowestAmt !== null ? 'You must beat the current lowest bid to rank #1' : 'Be the first to bid on this job'}
+            </p>
+
+            {lowestAmt !== null && (
+              <div className="jd-bid-lowest-box">
+                Current lowest: <strong>GH¢ {lowestAmt.toLocaleString()}</strong> — your bid must be{' '}
+                <strong>GH¢ {(lowestAmt - 1).toLocaleString()}</strong> or less to take the lead.
+              </div>
+            )}
+
+            {myBid && (
+              <div className="jd-my-bid-placed">
+                <CircleCheckBig size={15} />
+                Your bid: <strong>GH¢ {Number(myBid.amount).toLocaleString()}</strong>
+                {lowestAmt !== null && Number(myBid.amount) <= lowestAmt && (
+                  <span className="jd-leading"> · You&apos;re leading!</span>
+                )}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="jd-bid-form">
+              <div className="jd-form-group">
+                <label className="jd-form-label">Your bid amount (GH¢)</label>
+                <input
+                  type="number"
+                  className="jd-amount-input"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder={lowestAmt !== null ? String(lowestAmt - 1) : String(job.budget)}
+                  min={1}
+                  max={lowestAmt !== null ? lowestAmt - 1 : job.budget}
+                />
+                {lowestAmt !== null && (
+                  <div className="jd-amount-hint">
+                    Must be below GH¢ {lowestAmt.toLocaleString()} to lead · GH¢ 1 minimum
+                  </div>
+                )}
+              </div>
+
+              <div className="jd-form-group">
+                <label className="jd-form-label">Availability</label>
+                <input
+                  type="text"
+                  className="jd-form-input"
+                  value={availability}
+                  onChange={(e) => setAvail(e.target.value)}
+                  placeholder="e.g. This Saturday 8am–12pm, or any weekday"
+                />
+              </div>
+
+              <div className="jd-form-group">
+                <label className="jd-form-label">Bid note <span className="jd-opt">(optional but recommended)</span></label>
+                <textarea
+                  className="jd-form-textarea"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Briefly describe your experience and approach. A good note significantly improves your chances."
+                  rows={4}
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="jd-submit-btn"
+                disabled={submitting || (isAuth && amount !== '' && !amountValid)}
+              >
+                {submitting
+                  ? 'Placing bid…'
+                  : !isAuth
+                  ? 'Sign in to bid'
+                  : `Submit Bid → GH¢ ${parsedAmt > 0 ? parsedAmt.toLocaleString() : '…'}`}
+              </button>
+              <p className="jd-submit-disclaimer">
+                Your bid is binding if selected. Payment is held in escrow until work is confirmed complete.
+              </p>
+            </form>
+          </div>
+
+          <div className="jd-posted-card">
+            <div className="jd-posted-label">POSTED BY</div>
+            <div className="jd-posted-row">
+              <button
+                type="button"
+                className="jd-profile-link jd-posted-profile"
+                onClick={() => ownerId && navigate(`/providers/${ownerId}`)}
+                title={ownerId ? 'View client profile' : 'Profile unavailable'}
+                disabled={!ownerId}
+              >
+                <AvatarCircle name={owner.name} size={42} />
+                <div>
+                  <div className="jd-posted-name">{owner.name || 'Client'}</div>
+                  <div className="jd-posted-meta">
+                    {memberSince ? `Member since ${memberSince}` : 'Verified Client'}
+                    {ownerLocation ? ` · ${ownerLocation}` : ''}
+                  </div>
+                </div>
+              </button>
+            </div>
+            <div className="jd-posted-stats">
+              <div className="jd-posted-stat">
+                <div className="jd-posted-stat-val">
+                  <Star size={13} fill="#f59e0b" stroke="#f59e0b" strokeWidth={1.5} />{' '}
+                  {Number(owner.average_rating || 5.0).toFixed(1)}
+                </div>
+                <div className="jd-posted-stat-label">Avg. rating given</div>
+              </div>
+              <div className="jd-posted-stat">
+                <div className="jd-posted-stat-val">{owner.reviews_count || job.bids_count || 0}</div>
+                <div className="jd-posted-stat-label">Jobs posted</div>
+              </div>
+              <div className="jd-posted-stat">
+                <div className="jd-posted-stat-val">{Number(owner.response_rate ?? 100).toFixed(0)}%</div>
+                <div className="jd-posted-stat-label">Payment rate</div>
+              </div>
+              <div className="jd-posted-stat">
+                <div className="jd-posted-stat-val">{owner.total_jobs_completed || 0}</div>
+                <div className="jd-posted-stat-label">Jobs completed</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="jd-how-card">
+            <div className="jd-how-title">How selection works</div>
+            {[
+              'Client reviews all bids when auction closes',
+              'Lowest bid is shown first but is not auto-selected',
+              'Client can factor in rating, note, and availability',
+              'Selected provider is notified immediately',
+              'Payment is held in escrow until job is confirmed done',
+              'Both sides leave a review after completion',
+            ].map((line) => (
+              <div key={line} className="jd-how-row">
+                <span className="jd-how-check">✓</span>
+                <span>{line}</span>
+              </div>
+            ))}
+          </div>
+        </aside>
+      </div>
+    </div>
+  )
+}
+
+export default function JobDetailPage() {
+  const { id }     = useParams()
+  const navigate   = useNavigate()
+  const { user, isAuthenticated } = useAuthStore()
   const { selectedJob, fetchJob, loading } = useJobsStore()
 
-  const [busyAction, setBusyAction] = useState('')
+  const [bids, setBids]                     = useState([])
+  const [busyAction, setBusyAction]         = useState('')
   const [progressMessage, setProgressMessage] = useState('')
-  const [submitNote, setSubmitNote] = useState('')
+  const [submitNote, setSubmitNote]         = useState('')
   const [deliverableUrl, setDeliverableUrl] = useState('')
   const [revisionReason, setRevisionReason] = useState('')
-  const [disputeReason, setDisputeReason] = useState('')
-  const [contractDraft, setContractDraft] = useState({
-    scope: '',
-    deadline: '',
-    agreed_price: '',
-  })
+  const [disputeReason, setDisputeReason]   = useState('')
+  const [contractDraft, setContractDraft]   = useState({ scope: '', deadline: '', agreed_price: '' })
 
-  useEffect(() => {
-    fetchJob(id)
-  }, [id, fetchJob])
+  useEffect(() => { fetchJob(id) }, [id, fetchJob])
 
-  const userId = user?._id || user?.id
-  const ownerId = selectedJob?.owner_id?._id || selectedJob?.owner_id
+  const loadBids = useCallback(async () => {
+    try {
+      const res = await api.getJobBids(id)
+      setBids(res.data.bids || res.data || [])
+    } catch { /* non-fatal */ }
+  }, [id])
+
+  useEffect(() => { loadBids() }, [loadBids])
+
+  const userId          = user?._id || user?.id
+  const ownerId         = selectedJob?.owner_id?._id || selectedJob?.owner_id
   const winningSellerId = selectedJob?.winning_bid_id?.seller_id?._id || selectedJob?.winning_bid_id?.seller_id
 
   const isBuyer = !!userId && String(userId) === String(ownerId)
@@ -136,14 +651,33 @@ export default function JobDetailPage() {
     }
   }
 
-  if (loading && !selectedJob) {
-    return <div className="main" />
+  const myBid = useMemo(() => {
+    if (!userId || !bids.length) return null
+    return bids.find((b) => String(b.seller_id?._id || b.seller_id) === String(userId)) || null
+  }, [bids, userId])
+
+  const handleBidSubmit = useCallback(async (data) => {
+    await api.submitBid(data)
+    await Promise.all([fetchJob(id, { silent: true }), loadBids()])
+  }, [id, fetchJob, loadBids])
+
+  if (loading && !selectedJob) return <div className="main" />
+  if (!selectedJob) return <div className="main" style={{ padding: 40, color: 'var(--muted)' }}>Job not found.</div>
+
+  /* bidding phase → new Sika-style detail + bid view */
+  if (selectedJob.status === 'open' && !selectedJob.winning_bid_id) {
+    return (
+      <BiddingView
+        job={selectedJob}
+        bids={bids}
+        myBid={myBid}
+        isAuth={isAuthenticated}
+        onBidSubmit={handleBidSubmit}
+      />
+    )
   }
 
-  if (!selectedJob) {
-    return <div className="main">Job not found</div>
-  }
-
+  /* post-acceptance → workflow view */
   return (
     <div className="main">
       <div className="workspace-head">
@@ -190,7 +724,7 @@ export default function JobDetailPage() {
           {selectedJob.winning_bid_id && canSeeWorkflow && (stage === 'contract' || stage === 'bidding') && (
             <>
               <div className="wf-data-grid two">
-                <div className="wf-cell"><div className="wf-cell-label">Agreed Price</div><div className="wf-cell-value">${Number(selectedJob.contract_terms?.agreed_price || selectedJob.escrow_amount || 0).toLocaleString()}</div></div>
+                <div className="wf-cell"><div className="wf-cell-label">Agreed Price</div><div className="wf-cell-value">GH¢ {Number(selectedJob.contract_terms?.agreed_price || selectedJob.escrow_amount || 0).toLocaleString()}</div></div>
                 <div className="wf-cell"><div className="wf-cell-label">Deadline</div><div className="wf-cell-value">{toDateText(selectedJob.contract_terms?.deadline)}</div></div>
               </div>
 
@@ -270,7 +804,7 @@ export default function JobDetailPage() {
               <div className="wf-note-block">Buyer funds escrow. Seller starts only after funds are secured.</div>
               <div className="wf-data-grid three">
                 <div className="wf-cell"><div className="wf-cell-label">Buyer</div><div className="wf-cell-value">{selectedJob.owner_id?.name || 'Buyer'}</div></div>
-                <div className="wf-cell"><div className="wf-cell-label">Escrow Amount</div><div className="wf-cell-value">${Number(selectedJob.escrow_amount || 0).toLocaleString()}</div></div>
+                <div className="wf-cell"><div className="wf-cell-label">Escrow Amount</div><div className="wf-cell-value">GH¢ {Number(selectedJob.escrow_amount || 0).toLocaleString()}</div></div>
                 <div className="wf-cell"><div className="wf-cell-label">Seller</div><div className="wf-cell-value">{selectedJob.winning_bid_id?.seller_id?.name || 'Seller'}</div></div>
               </div>
               {isBuyer ? (
@@ -421,8 +955,8 @@ export default function JobDetailPage() {
         <aside className="wf-section">
           <div className="wf-card-title" style={{ marginBottom: 12 }}>Job Summary</div>
           <div className="info-row"><span className="info-label">Category</span><span>{selectedJob.category}</span></div>
-          <div className="info-row"><span className="info-label">Budget Cap</span><span>${Number(selectedJob.budget || 0).toLocaleString()}</span></div>
-          <div className="info-row"><span className="info-label">Agreed Price</span><span>${Number(selectedJob.escrow_amount || selectedJob.winning_bid_id?.amount || 0).toLocaleString()}</span></div>
+          <div className="info-row"><span className="info-label">Budget Cap</span><span>GH¢ {Number(selectedJob.budget || 0).toLocaleString()}</span></div>
+          <div className="info-row"><span className="info-label">Agreed Price</span><span>GH¢ {Number(selectedJob.escrow_amount || selectedJob.winning_bid_id?.amount || 0).toLocaleString()}</span></div>
           <div className="info-row"><span className="info-label">Buyer</span><span>{selectedJob.owner_id?.name || 'N/A'}</span></div>
           <div className="info-row"><span className="info-label">Seller</span><span>{selectedJob.winning_bid_id?.seller_id?.name || 'N/A'}</span></div>
           <div className="info-row"><span className="info-label">Status</span><span>{selectedJob.status}</span></div>

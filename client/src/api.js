@@ -36,6 +36,7 @@ export const api = {
   register: (data) => client.post('/auth/register', data),
   login: (data) => client.post('/auth/login', data),
   getMe: () => client.get('/auth/me'),
+  getUserProfile: (userId) => client.get(`/auth/users/${userId}`),
 
   // Jobs
   getJobs: (params) => client.get('/jobs', { params }),

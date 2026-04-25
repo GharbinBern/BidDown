@@ -67,7 +67,7 @@ export default function HomePage() {
 
   const handleBrowse = () => {
     const query = city === 'All Cities' ? '' : `&city=${encodeURIComponent(city)}`
-    navigate(`/marketplace?status=open${query}`)
+    navigate(`/browse?status=open${query}`)
   }
 
   return (
@@ -133,7 +133,7 @@ export default function HomePage() {
         <div className="landing-wrap">
           <div className="landing-head-row">
             <h2 className="landing-section-title">Active service requests</h2>
-            <button type="button" className="landing-link" onClick={() => navigate('/marketplace')}>View all requests →</button>
+            <button type="button" className="landing-link" onClick={() => navigate('/browse')}>View all requests →</button>
           </div>
           <div className="landing-request-grid">
             {featuredJobs.map((job, index) => {
@@ -143,7 +143,7 @@ export default function HomePage() {
               const stars = (4.1 + ((job.bids_count || 0) % 9) / 10).toFixed(1)
 
               return (
-                <article key={job._id} className="landing-request-card" onClick={() => navigate('/marketplace')}>
+                <article key={job._id} className="landing-request-card" onClick={() => navigate('/browse')}>
                   <div className="landing-request-top">
                     <strong>{(job.category || 'Home Repairs').toUpperCase()}</strong>
                     <span className={`landing-status ${t.urgent ? 'soon' : ''}`}>{t.urgent ? 'Closing soon' : 'Open'}</span>
@@ -171,7 +171,7 @@ export default function HomePage() {
                         <strong>{job.owner_id?.name || 'Client'}</strong>
                         <div className="landing-rate">★★★★★ {stars}</div>
                       </div>
-                      <button type="button" className="landing-bid-btn" onClick={(e) => { e.stopPropagation(); navigate('/marketplace') }}>Place Bid</button>
+                      <button type="button" className="landing-bid-btn" onClick={(e) => { e.stopPropagation(); navigate('/browse') }}>Place Bid</button>
                     </div>
                   </div>
                 </article>
@@ -185,7 +185,7 @@ export default function HomePage() {
         <div className="landing-wrap">
           <div className="landing-head-row">
             <h2 className="landing-section-title">Browse by service category</h2>
-            <button type="button" className="landing-link" onClick={() => navigate('/marketplace')}>All categories →</button>
+            <button type="button" className="landing-link" onClick={() => navigate('/browse')}>All categories →</button>
           </div>
           <div className="landing-category-grid">
             {CATEGORY_BLOCKS.map((category) => (
@@ -193,7 +193,7 @@ export default function HomePage() {
                 key={category.name}
                 type="button"
                 className="landing-category-card"
-                onClick={() => navigate(`/marketplace?category=${encodeURIComponent(category.query)}`)}
+                onClick={() => navigate(`/browse?category=${encodeURIComponent(category.query)}`)}
               >
                 <div className="landing-category-icon">{category.icon}</div>
                 <div className="landing-category-name">{category.name}</div>
@@ -236,14 +236,14 @@ export default function HomePage() {
             </div>
             <div className="landing-footer-col">
               <h4>FOR CLIENTS</h4>
-              <button type="button" onClick={() => navigate('/marketplace')}>Post a Job</button>
-              <button type="button" onClick={() => navigate('/marketplace')}>How Bidding Works</button>
-              <button type="button" onClick={() => navigate('/marketplace')}>Browse Categories</button>
+              <button type="button" onClick={() => navigate('/post-job')}>Post a Job</button>
+              <button type="button" onClick={() => navigate('/browse')}>How Bidding Works</button>
+              <button type="button" onClick={() => navigate('/browse')}>Browse Categories</button>
             </div>
             <div className="landing-footer-col">
               <h4>FOR PROVIDERS</h4>
               <button type="button" onClick={() => navigate('/register')}>Register as Provider</button>
-              <button type="button" onClick={() => navigate('/marketplace')}>Browse Open Requests</button>
+              <button type="button" onClick={() => navigate('/browse')}>Browse Open Requests</button>
               <button type="button" onClick={() => navigate('/dashboard')}>Provider Handbook</button>
             </div>
             <div className="landing-footer-col">

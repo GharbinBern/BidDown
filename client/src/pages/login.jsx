@@ -37,7 +37,7 @@ export default function LoginPage() {
         await register(email, password, name, roles)
         toast.success('Account created!')
       }
-      navigate('/marketplace')
+      navigate('/browse')
     } catch (error) {
       toast.error(error.response?.data?.error || (mode === 'login' ? 'Login failed' : 'Registration failed'))
     } finally {

@@ -5,6 +5,7 @@ import User from './models/User.js';
 import Job from './models/Job.js';
 import Bid from './models/Bid.js';
 import Review from './models/Review.js';
+import ProviderProfile from './models/ProviderProfile.js';
 
 dotenv.config();
 
@@ -266,6 +267,7 @@ function sampleBidProposal(category) {
 async function createUsers() {
   const buyers = [];
   const sellers = [];
+  const providerProfiles = [];
 
   for (let i = 0; i < BUYER_COUNT; i += 1) {
     const buyer = new User({
@@ -281,6 +283,17 @@ async function createUsers() {
   }
 
   for (let i = 0; i < SELLER_COUNT; i += 1) {
+    const categoryPool = shuffle(CATEGORIES).slice(0, randomInt(1, 3));
+    const seededSkills = {
+      'Home Repairs': ['Polytank repair & installation', 'Float valve replacement', 'Pipe fitting & soldering', 'General home repairs'],
+      Tutoring: ['WASSCE prep', 'One-on-one tutoring', 'Lesson planning', 'Progress tracking'],
+      Photography: ['Portrait photography', 'Event coverage', 'Photo retouching', 'Lighting setup'],
+      Cleaning: ['Deep cleaning', 'Post-construction cleanup', 'Office sanitation', 'Eco-friendly products'],
+      Delivery: ['Same-day delivery', 'Parcel handling', 'Route optimization', 'Proof of delivery'],
+      'Design & Print': ['Logo design', 'Flyer design', 'Print-ready setup', 'Brand consistency'],
+    };
+    const skills = categoryPool.flatMap((cat) => seededSkills[cat] || [cat]).slice(0, 8);
+
     const seller = new User({
       email: `seller${i + 1}@example.com`,
       password: PASSWORD,
@@ -291,11 +304,47 @@ async function createUsers() {
         bio: SELLER_BIOS[i],
         hourly_rate: randomInt(35, 120),
         portfolio_url: `https://portfolio.example/seller${i + 1}`,
+        skills,
       },
     });
 
     await seller.save();
     sellers.push(seller);
+
+    providerProfiles.push({
+      user_id: seller._id,
+      headline: `${categoryPool[0]} specialist delivering reliable service across ${randomFrom(['Accra', 'Tema', 'Kumasi'])}`,
+      city: randomFrom(['Accra', 'Tema', 'Kumasi']),
+      country: 'Ghana',
+      is_online: Math.random() < 0.65,
+      verification: {
+        national_id_verified: true,
+        phone_verified: true,
+        background_check_cleared: true,
+        skill_assessment_passed: true,
+        callback_guarantee_active: true,
+        electrical_badge: Math.random() < 0.3,
+      },
+      reliability: {
+        avg_response_minutes: randomInt(20, 55),
+        bid_acceptance_rate: randomInt(55, 90),
+        job_completion_rate: randomInt(90, 100),
+        on_time_arrival_rate: randomInt(85, 98),
+        repeat_clients: randomInt(3, 24),
+        disputes_filed: randomInt(0, 2),
+      },
+      skills,
+      categories_served: categoryPool.map((name) => ({ name, count: randomInt(2, 20) })),
+      weekly_availability: [
+        ['available', 'available', 'available', 'available', 'available', 'partial', 'off'],
+        ['available', 'available', 'available', 'available', 'partial', 'partial', 'off'],
+        ['available', 'available', 'available', 'available', 'available', 'off', 'off'],
+      ],
+    });
+  }
+
+  if (providerProfiles.length) {
+    await ProviderProfile.insertMany(providerProfiles);
   }
 
   return { buyers, sellers };
@@ -522,6 +571,7 @@ async function seed() {
   await Review.deleteMany({});
   await Bid.deleteMany({});
   await Job.deleteMany({});
+  await ProviderProfile.deleteMany({});
   await User.deleteMany({});
   console.log('Cleared existing data');
 
