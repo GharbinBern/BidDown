@@ -134,7 +134,7 @@ export default function HomePage() {
 
       <section className="landing-section">
         <div className="landing-wrap">
-          <h2 className="landing-section-title">How Sika works</h2>
+          <h2 className="landing-section-title">How BraFom works</h2>
           <div className="landing-how-grid">
             <article className="landing-how-card">
               <span className="landing-how-num">1</span>
@@ -232,7 +232,7 @@ export default function HomePage() {
 
       <section className="landing-section">
         <div className="landing-wrap">
-          <h2 className="landing-section-title">Why Sika is different</h2>
+          <h2 className="landing-section-title">Why BraFom is different</h2>
           <div className="landing-why-grid">
             <article className="landing-why-card">
               <div className="landing-why-icon">★</div>
@@ -257,29 +257,12 @@ export default function HomePage() {
         <div className="landing-wrap">
           <div className="landing-footer-grid">
             <div>
-              <div className="landing-footer-logo">Sika</div>
+              <div className="landing-footer-logo">BraFom</div>
               <p className="landing-footer-copy">Reverse auction marketplace for local services across Ghana. Providers compete. You save.</p>
             </div>
-            <div className="landing-footer-col">
-              <h4>FOR CLIENTS</h4>
-              <button type="button" onClick={() => navigate('/post-job')}>Post a Job</button>
-              <button type="button" onClick={() => navigate('/browse')}>How Bidding Works</button>
-              <button type="button" onClick={() => navigate('/browse')}>Browse Categories</button>
-            </div>
-            <div className="landing-footer-col">
-              <h4>FOR PROVIDERS</h4>
-              <button type="button" onClick={() => navigate('/register')}>Register as Provider</button>
-              <button type="button" onClick={() => navigate('/browse')}>Browse Open Requests</button>
-              <button type="button" onClick={() => navigate('/dashboard')}>Provider Handbook</button>
-            </div>
-            <div className="landing-footer-col">
-              <h4>COMPANY</h4>
-              <button type="button" onClick={() => navigate('/')}>About Sika</button>
-              <button type="button" onClick={() => navigate('/')}>Blog</button>
-              <button type="button" onClick={() => navigate('/')}>Contact Us</button>
-            </div>
+
           </div>
-          <div className="landing-footer-bottom">© 2026 Sika Technologies Ltd. Accra, Ghana</div>
+          <div className="landing-footer-bottom">© 2026 BraFom Technologies Ltd. Accra, Ghana</div>
         </div>
       </footer>
     </div>

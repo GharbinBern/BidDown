@@ -269,11 +269,7 @@ function RequestCard({ job, myBid, onBid }) {
         )}
         <h3 className="br-card-title">{job.title}</h3>
         <p className="br-card-desc">{job.description}</p>
-        {tags.length > 0 && (
-          <div className="br-tags">
-            {tags.map((tag, i) => <span key={i} className="br-tag">{tag}</span>)}
-          </div>
-        )}
+
       </div>
 
       <div className="br-card-side">

@@ -39,11 +39,7 @@ const INTAKE_TEMPLATE_BY_CATEGORY = {
     { key: 'event_date', label: 'Event Date', placeholder: '2026-05-30' },
     { key: 'deliverables', label: 'Deliverables', placeholder: '80 edited images + album' },
   ],
-  Cleaning: [
-    { key: 'property_size', label: 'Property Size', placeholder: '2-bedroom apartment' },
-    { key: 'frequency', label: 'Frequency', placeholder: 'One-time, weekly, monthly' },
-    { key: 'supplies_provided', label: 'Supplies Provided', placeholder: 'Yes / No' },
-  ],
+  Cleaning: [],
   Delivery: [
     { key: 'pickup_location', label: 'Pickup Location', placeholder: 'Tema Community 1' },
     { key: 'dropoff_location', label: 'Dropoff Location', placeholder: 'Adenta Housing' },

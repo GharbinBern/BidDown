@@ -1,20 +1,51 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
   BadgeCheck,
-  Bell,
-  ChartColumn,
   CircleUserRound,
   CreditCard,
   LogOut,
   Lock,
-  Pencil,
-  Settings,
   ShieldCheck,
 } from 'lucide-react'
 import { api } from '../api'
 import { useAuthStore } from '../store'
+
+const CATEGORY_SPECIALISATIONS = {
+  'Home Repairs': [
+    'Leak detection',
+    'Fixture replacement',
+    'Wall patching',
+    'Door and lock repairs',
+    'Ceiling repairs',
+    'General maintenance',
+  ],
+  Electrical: [
+    'Wiring and rewiring',
+    'Socket replacement',
+    'Lighting installation',
+    'Circuit breaker fixes',
+    'Generator changeover setup',
+    'Fault diagnosis',
+  ],
+  Carpentry: [
+    'Custom shelving',
+    'Cabinet installation',
+    'Door fitting',
+    'Furniture repairs',
+    'Wardrobe build',
+    'Roof woodwork',
+  ],
+  Plumbing: [
+    'Pipe installation',
+    'Leak repairs',
+    'Water heater setup',
+    'Drain unclogging',
+    'Bathroom fittings',
+    'Pump servicing',
+  ],
+}
 
 export default function SettingsPage() {
   const navigate = useNavigate()
@@ -24,27 +55,26 @@ export default function SettingsPage() {
   const [savingProfile, setSavingProfile] = useState(false)
   const [savingSkills, setSavingSkills] = useState(false)
   const [loadingProfile, setLoadingProfile] = useState(false)
-  const [verificationRows, setVerificationRows] = useState([
-    { title: 'National ID', detail: 'Status unavailable', status: 'Pending', active: false },
-    { title: 'Phone number', detail: 'Status unavailable', status: 'Pending', active: false },
-    { title: 'Background check', detail: 'Status unavailable', status: 'Pending', active: false },
-    { title: 'Skill assessment', detail: 'Status unavailable', status: 'Pending', active: false },
-    { title: 'Electrical skill badge', detail: 'Not yet applied', status: 'Take assessment', active: false },
-  ])
-
-  const defaultAbout = 'I am a professional service provider based in Accra with years of hands-on experience across residential and commercial jobs.'
+  const [verificationState, setVerificationState] = useState({
+    national_id_verified: false,
+    phone_verified: false,
+    background_check_cleared: false,
+    skill_assessment_passed: false,
+    electrical_badge: false,
+  })
+  const phoneInputRef = useRef(null)
 
   const deriveFormFromUser = (currentUser = {}) => {
-    const split = (currentUser?.name || 'User').trim().split(/\s+/)
+    const split = (currentUser?.name || '').trim().split(/\s+/).filter(Boolean)
     return {
-      firstName: split[0] || 'User',
+      firstName: split[0] || '',
       lastName: split.slice(1).join(' ') || '',
       email: currentUser?.email || '',
-      phone: currentUser?.phone || '+233 24 555 7712',
-      city: currentUser?.city || 'Accra',
-      neighbourhood: currentUser?.neighbourhood || 'Adabraka',
-      about: currentUser?.seller_profile?.bio || defaultAbout,
-      category: currentUser?.primaryCategory || 'Home Repairs',
+      phone: currentUser?.phone || '',
+      city: currentUser?.city || '',
+      neighbourhood: currentUser?.neighbourhood || '',
+      about: currentUser?.seller_profile?.bio || '',
+      category: currentUser?.primaryCategory || '',
     }
   }
 
@@ -65,14 +95,7 @@ export default function SettingsPage() {
 
   const [activeSkillTags, setActiveSkillTags] = useState(() => {
     if (Array.isArray(user?.skills) && user.skills.length) return user.skills
-    return [
-      'Polytank repair',
-      'Float valve replacement',
-      'Pipe fitting',
-      'Bathroom fittings',
-      'Overhead tank sealing',
-      'Drain clearing',
-    ]
+    return []
   })
 
   useEffect(() => {
@@ -81,18 +104,11 @@ export default function SettingsPage() {
     }
   }, [user])
 
-  const allSkillTags = [
-    'Polytank repair',
-    'Float valve replacement',
-    'Pipe fitting',
-    'Bathroom fittings',
-    'Overhead tank sealing',
-    'Drain clearing',
-    'Electrical',
-    'Tiling',
-    'Carpentry',
-    'Painting',
-  ]
+  const allSkillTags = useMemo(() => {
+    const base = CATEGORY_SPECIALISATIONS[form.category] || []
+    const carryOver = activeSkillTags.filter((skill) => !base.includes(skill))
+    return [...base, ...carryOver]
+  }, [activeSkillTags, form.category])
 
   useEffect(() => {
     let cancelled = false
@@ -109,14 +125,14 @@ export default function SettingsPage() {
 
         const mergedUser = {
           ...meData,
-          city: profileData?.provider_profile?.city || meData?.city || 'Accra',
-          primaryCategory: meData?.primaryCategory || form.category || 'Home Repairs',
+          city: profileData?.provider_profile?.city || meData?.city || '',
+          primaryCategory: meData?.primaryCategory || form.category || '',
           skills: profileData?.provider_profile?.skills?.length
             ? profileData.provider_profile.skills
             : (Array.isArray(meData?.skills) ? meData.skills : []),
           seller_profile: {
             ...(meData?.seller_profile || {}),
-            bio: profileData?.user?.seller_profile?.bio || meData?.seller_profile?.bio || defaultAbout,
+            bio: profileData?.user?.seller_profile?.bio || meData?.seller_profile?.bio || '',
           },
         }
 
@@ -127,38 +143,13 @@ export default function SettingsPage() {
         }
 
         const verify = profileData?.provider_profile?.verification || {}
-        setVerificationRows([
-          {
-            title: 'National ID',
-            detail: verify.national_id_verified ? 'Identity verified' : 'ID not yet verified',
-            status: verify.national_id_verified ? 'Verified' : 'Pending',
-            active: !!verify.national_id_verified,
-          },
-          {
-            title: 'Phone number',
-            detail: form.phone || mergedUser?.phone || 'Phone number not set',
-            status: verify.phone_verified ? 'Verified' : 'Pending',
-            active: !!verify.phone_verified,
-          },
-          {
-            title: 'Background check',
-            detail: verify.background_check_cleared ? 'Background cleared' : 'Check required',
-            status: verify.background_check_cleared ? 'Verified' : 'Renew soon',
-            active: !!verify.background_check_cleared,
-          },
-          {
-            title: 'Skill assessment',
-            detail: verify.skill_assessment_passed ? 'Assessment passed' : 'Assessment pending',
-            status: verify.skill_assessment_passed ? 'Active' : 'Pending',
-            active: !!verify.skill_assessment_passed,
-          },
-          {
-            title: 'Electrical skill badge',
-            detail: verify.electrical_badge ? 'Badge active' : 'Not yet applied',
-            status: verify.electrical_badge ? 'Active' : 'Take assessment',
-            active: !!verify.electrical_badge,
-          },
-        ])
+        setVerificationState({
+          national_id_verified: !!verify.national_id_verified,
+          phone_verified: !!verify.phone_verified,
+          background_check_cleared: !!verify.background_check_cleared,
+          skill_assessment_passed: !!verify.skill_assessment_passed,
+          electrical_badge: !!verify.electrical_badge,
+        })
       } catch (err) {
         if (cancelled) return
         const message = err?.response?.data?.error || 'Could not load profile details.'
@@ -176,6 +167,65 @@ export default function SettingsPage() {
 
   const profileName = `${form.firstName} ${form.lastName}`.trim()
   const profileLocation = form.city ? `${form.city}, Ghana` : 'Ghana'
+
+  const verificationRows = useMemo(() => {
+    const hasPhone = Boolean((form.phone || '').trim())
+    return [
+      {
+        key: 'national_id_verified',
+        title: 'National ID',
+        done: verificationState.national_id_verified,
+        detail: verificationState.national_id_verified ? 'ID verified' : 'Not done',
+        action: verificationState.national_id_verified ? 'View' : 'Start ID verification',
+        onAction: () => {
+          toast('ID verification submission will be enabled here soon.')
+        },
+      },
+      {
+        key: 'phone_verified',
+        title: 'Phone number',
+        done: verificationState.phone_verified,
+        detail: verificationState.phone_verified
+          ? `Verified (${form.phone || user?.phone || 'Phone number'})`
+          : (hasPhone ? 'Not done' : 'Not done (add phone number first)'),
+        action: verificationState.phone_verified
+          ? 'View'
+          : (hasPhone ? 'Send verification code' : 'Add phone number'),
+        onAction: () => {
+          if (verificationState.phone_verified) {
+            toast.success('Phone number is already verified.')
+            return
+          }
+          if (!hasPhone) {
+            phoneInputRef.current?.focus()
+            toast('Add a phone number first, then save changes.')
+            return
+          }
+          toast('Phone OTP verification flow will be enabled here soon.')
+        },
+      },
+      {
+        key: 'background_check_cleared',
+        title: 'Background check',
+        done: verificationState.background_check_cleared,
+        detail: verificationState.background_check_cleared ? 'Background check cleared' : 'Not done',
+        action: verificationState.background_check_cleared ? 'View' : 'Request background check',
+        onAction: () => {
+          toast('Background check request flow will be enabled here soon.')
+        },
+      },
+      {
+        key: 'skill_assessment_passed',
+        title: 'Skill assessment',
+        done: verificationState.skill_assessment_passed,
+        detail: verificationState.skill_assessment_passed ? 'Assessment passed' : 'Not done',
+        action: verificationState.skill_assessment_passed ? 'View' : 'Take assessment',
+        onAction: () => {
+          toast('Skill assessment flow will be enabled here soon.')
+        },
+      },
+    ]
+  }, [form.phone, user?.phone, verificationState])
 
   const updateField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }))
 
@@ -327,33 +377,21 @@ export default function SettingsPage() {
               </div>
               <div style={{ fontSize: 21, fontWeight: 800, color: '#273646', marginBottom: 2, fontFamily: 'var(--font-head)' }}>{profileName || 'User'}</div>
               <div style={{ color: '#75859a', fontSize: 13, marginBottom: 8 }}>Provider · {profileLocation}</div>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <span style={badgeStyle('#f0f2f5', '#3a4d60')}>✓ Verified</span>
-                <span style={badgeStyle('#f0f2f5', '#3a4d60')}>★ Top Rated</span>
-              </div>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 14, paddingTop: 12, borderTop: '1px solid #e8edf3' }}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>4.9</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>{Number(user?.average_rating ?? 0).toFixed(1)}</div>
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Rating</div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>{user?.total_jobs_completed ?? 2}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>{user?.total_jobs_completed ?? 0}</div>
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Jobs done</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>97%</div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Completion</div>
                 </div>
               </div>
             </div>
             {menuItem('Public Profile', <CircleUserRound size={16} />, true)}
-            {menuItem('Edit Profile', <Pencil size={16} />)}
             {menuItem('Verification', <ShieldCheck size={16} />)}
-            {menuItem('Notifications', <Bell size={16} />, false, true)}
             {menuItem('Password & Security', <Lock size={16} />)}
             {menuItem('Payment & Payouts', <CreditCard size={16} />)}
-            {menuItem('My Stats', <ChartColumn size={16} />)}
-            {menuItem('Preferences', <Settings size={16} />)}
             {menuItem('Sign out', <LogOut size={16} />)}
           </div>
         </aside>
@@ -382,16 +420,11 @@ export default function SettingsPage() {
                 </label>
                 <label style={{ display: 'grid', gap: 6 }}>
                   <span style={{ fontSize: 12, color: '#5b6879', fontWeight: 600 }}>Phone number</span>
-                  <input className="input-field" value={form.phone} onChange={(e) => updateField('phone', e.target.value)} />
+                  <input ref={phoneInputRef} className="input-field" value={form.phone} onChange={(e) => updateField('phone', e.target.value)} />
                 </label>
                 <label style={{ display: 'grid', gap: 6 }}>
                   <span style={{ fontSize: 12, color: '#5b6879', fontWeight: 600 }}>City</span>
-                  <select className="input-field" value={form.city} onChange={(e) => updateField('city', e.target.value)}>
-                    <option value="Accra">Accra</option>
-                    <option value="Kumasi">Kumasi</option>
-                    <option value="Takoradi">Takoradi</option>
-                    <option value="Tamale">Tamale</option>
-                  </select>
+                  <input className="input-field" value={form.city} onChange={(e) => updateField('city', e.target.value)} />
                 </label>
                 <label style={{ display: 'grid', gap: 6 }}>
                   <span style={{ fontSize: 12, color: '#5b6879', fontWeight: 600 }}>Neighbourhood</span>
@@ -424,6 +457,7 @@ export default function SettingsPage() {
                 <label style={{ display: 'grid', gap: 6, maxWidth: 320 }}>
                   <span style={{ fontSize: 12, color: '#5b6879', fontWeight: 600 }}>Primary category</span>
                   <select className="input-field" value={form.category} onChange={(e) => updateField('category', e.target.value)}>
+                    <option value="">Select category</option>
                     <option value="Home Repairs">Home Repairs</option>
                     <option value="Electrical">Electrical</option>
                     <option value="Carpentry">Carpentry</option>
@@ -465,28 +499,37 @@ export default function SettingsPage() {
             </div>
           )}
 
-          <div style={{ ...panelStyle, marginBottom: 14 }}>
-            <div style={{ padding: '14px 16px', borderBottom: '1px solid #e6ebf2' }}>
-              <div style={{ fontSize: 20, fontWeight: 800, color: '#2b3848', fontFamily: 'var(--font-head)' }}>Verification &amp; trust</div>
-              <div style={{ marginTop: 2, color: '#7b899a', fontSize: 12 }}>Verified providers win 3x more bids on average</div>
-            </div>
-            <div style={{ padding: 16, display: 'grid', gap: 12 }}>
-              {verificationRows.map((entry) => (
-                <div key={entry.title} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, border: '1px solid #e8edf3', borderRadius: 8, padding: '10px 12px' }}>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: '#ecf3e4', display: 'grid', placeItems: 'center' }}>
-                      <BadgeCheck size={16} color={entry.active ? '#3f7b2c' : '#77879a'} />
+          {isSeller && (
+            <div style={{ ...panelStyle, marginBottom: 14 }}>
+              <div style={{ padding: '14px 16px', borderBottom: '1px solid #e6ebf2' }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#2b3848', fontFamily: 'var(--font-head)' }}>Verification &amp; trust</div>
+                <div style={{ marginTop: 2, color: '#7b899a', fontSize: 12 }}>Complete these steps to strengthen your provider profile.</div>
+              </div>
+              <div style={{ padding: 16, display: 'grid', gap: 12 }}>
+                {verificationRows.map((entry) => (
+                  <div key={entry.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, border: '1px solid #e8edf3', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, background: entry.done ? '#ecf3e4' : '#f5f7fa', display: 'grid', placeItems: 'center' }}>
+                        <BadgeCheck size={16} color={entry.done ? '#3f7b2c' : '#77879a'} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#2e3b4a' }}>{entry.title}</div>
+                        <div style={{ fontSize: 12, color: '#77879a' }}>{entry.detail}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#2e3b4a' }}>{entry.title}</div>
-                      <div style={{ fontSize: 12, color: '#77879a' }}>{entry.detail}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={badgeStyle('#f0f2f5', entry.done ? '#2f6d24' : '#77879a')}>{entry.done ? 'Done' : 'Not done'}</span>
+                      {!entry.done && (
+                        <button type="button" className="btn btn-ghost" onClick={entry.onAction} style={{ padding: '6px 10px', fontSize: 10 }}>
+                          {entry.action}
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <span style={badgeStyle(entry.active ? '#f0f2f5' : '#f0f2f5', entry.active ? '#2f6d24' : '#77879a')}>{entry.status}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div style={{ ...panelStyle, borderColor: '#ebc3c0' }}>
             <div style={{ background: '#fff5f5', borderBottom: '1px solid #ebc3c0', padding: '12px 16px' }}>

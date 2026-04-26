@@ -83,9 +83,6 @@ function buildIntakeDetails(form) {
       }
     case 'Cleaning':
       return {
-        property_size: 'Not specified',
-        frequency: 'One-time',
-        supplies_provided: 'To be confirmed',
         requirements: requirementsText,
       }
     case 'Delivery':

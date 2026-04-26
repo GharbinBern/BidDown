@@ -78,7 +78,6 @@ export default function ProviderProfilePage() {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
-  const [activeTab, setActiveTab] = useState('overview')
   const [reviewSort, setReviewSort] = useState('recent')
 
   useEffect(() => {
@@ -221,16 +220,7 @@ export default function ProviderProfilePage() {
                   {(providerProfile.is_online ?? isSeller) && <p className="pp-online-label">● Online now</p>}
                 </div>
               </div>
-              {!isSelf && (
-                <div className="pp-hero-actions">
-                  <button type="button" className="pp-btn-outline" onClick={() => navigate('/browse')}>
-                    Invite to Bid →
-                  </button>
-                  <button type="button" className="pp-btn-ghost" onClick={() => navigate('/browse')}>
-                    View Active Bids
-                  </button>
-                </div>
-              )}
+
               {isSelf && (
                 <div className="pp-hero-actions">
                   <button type="button" className="pp-btn-outline" onClick={() => navigate('/profile')}>
@@ -241,26 +231,10 @@ export default function ProviderProfilePage() {
             </div>
           </div>
 
-          {/* Tabs */}
-          <div className="pp-tabs">
-            {['overview', 'reviews', 'job-history', 'availability'].map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                className={`pp-tab ${activeTab === tab ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab)}
-              >
-                {tab === 'overview' && 'Overview'}
-                {tab === 'reviews' && `Reviews (${totalReviews})`}
-                {tab === 'job-history' && 'Job History'}
-                {tab === 'availability' && 'Availability'}
-              </button>
-            ))}
-          </div>
 
-          {/* ── Overview tab ── */}
-          {activeTab === 'overview' && (
-            <>
+
+          {/* ── Overview ── */}
+          <>
               {/* Stats row */}
               <div className="pp-stats-row">
                 <div className="pp-stat">
@@ -306,11 +280,7 @@ export default function ProviderProfilePage() {
                 <div className="pp-card">
                   <div className="pp-card-head-row">
                     <h3 className="pp-section-head">Recent completed jobs</h3>
-                    {completedJobs.length >= 4 && (
-                      <button type="button" className="pp-view-all" onClick={() => setActiveTab('job-history')}>
-                        View all {user.total_jobs_completed || completedJobs.length} →
-                      </button>
-                    )}
+
                   </div>
                   <div className="pp-recent-jobs">
                     {completedJobs.slice(0, 4).map((job) => (
@@ -330,12 +300,10 @@ export default function ProviderProfilePage() {
                   </div>
                 </div>
               )}
-            </>
-          )}
+          </>
 
-          {/* ── Reviews tab ── */}
-          {activeTab === 'reviews' && (
-            <div className="pp-card">
+          {/* ── Reviews ── */}
+          <div className="pp-card">
               <div className="pp-reviews-headbar">
                 <h3 className="pp-section-head">Ratings &amp; reviews ({totalReviews} reviews)</h3>
                 <label className="pp-sort-wrap">
@@ -399,11 +367,9 @@ export default function ProviderProfilePage() {
                 ))}
               </div>
             </div>
-          )}
 
-          {/* ── Job History tab ── */}
-          {activeTab === 'job-history' && (
-            <div className="pp-card">
+          {/* ── Job History ── */}
+          <div className="pp-card">
               <h3 className="pp-section-head">Job history ({completedJobs.length})</h3>
               {completedJobs.length === 0 && <p className="pp-empty">No completed jobs yet.</p>}
               <div className="pp-job-history-list">
@@ -425,11 +391,9 @@ export default function ProviderProfilePage() {
                 ))}
               </div>
             </div>
-          )}
 
-          {/* ── Availability tab ── */}
-          {activeTab === 'availability' && (
-            <div className="pp-card">
+          {/* ── Availability ── */}
+          <div className="pp-card">
               <h3 className="pp-section-head">Weekly availability</h3>
               <div className="pp-avail-grid pp-avail-grid-lg">
                 <div className="pp-avail-days">
@@ -449,7 +413,6 @@ export default function ProviderProfilePage() {
                 <span className="pp-avail-cell off" /> Off
               </div>
             </div>
-          )}
         </div>
 
         {/* ─── RIGHT SIDEBAR ─── */}

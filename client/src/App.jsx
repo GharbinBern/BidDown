@@ -1991,31 +1991,94 @@ const style = `
   .auth-shell {
     min-height: calc(100vh - 52px);
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
-    padding: 60px 24px 40px;
+    padding: 0;
+    background:
+      radial-gradient(1000px 500px at 0% 0%, #dca53a22 0%, transparent 60%),
+      radial-gradient(900px 480px at 100% 100%, #0b345f22 0%, transparent 60%),
+      linear-gradient(180deg, #f8fbff 0%, #f4f6fa 100%);
+  }
+  .auth-grid {
+    width: 100%;
+    max-width: none;
+    min-height: calc(100vh - 52px);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: none;
+    border-radius: 0;
+    overflow: hidden;
+    box-shadow: none;
+    background: #fff;
+  }
+  .auth-brand {
+    padding: 34px 30px;
+    background:
+      linear-gradient(150deg, #0b345f 0%, #0f4172 45%, #1a4f81 100%);
+    color: #e8f2ff;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .auth-brand-mark {
+    font-family: var(--font-head);
+    font-size: 34px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .auth-brand h2 {
+    font-family: var(--font-head);
+    font-size: 34px;
+    line-height: 1.15;
+    color: #fff;
+  }
+  .auth-brand p {
+    color: #d6e7fb;
+    font-size: 16px;
+  }
+  .auth-brand ul {
+    list-style: none;
+    display: grid;
+    gap: 8px;
+  }
+  .auth-brand li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #e6f0ff;
+  }
+  .auth-brand li::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--accent);
+    flex-shrink: 0;
   }
   .auth-card {
-    width: 100%;
-    max-width: 400px;
+    width: auto;
     background: var(--surface);
-    border: 1px solid var(--border2);
-    border-top: 3px solid var(--accent);
-    padding: 32px;
+    border: none;
+    border-top: none;
+    padding: 40px 36px;
+    overflow-y: auto;
   }
   .auth-header {
-    text-align: center;
-    margin-bottom: 24px;
+    text-align: left;
+    margin-bottom: 16px;
   }
   .auth-header h1 {
     font-family: var(--font-head);
-    font-size: 22px;
+    font-size: 30px;
     font-weight: 900;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
+    line-height: 1.1;
   }
   .auth-header p {
     color: var(--muted);
-    font-size: 13px;
+    font-size: 14px;
   }
   .auth-mode-toggle {
     display: grid;
@@ -2023,10 +2086,10 @@ const style = `
     border: 1px solid var(--border2);
     border-radius: var(--radius-sm);
     overflow: hidden;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
   }
   .auth-mode-toggle button {
-    padding: 8px;
+    padding: 10px;
     font-family: var(--font);
     font-size: 11px;
     font-weight: 700;
@@ -2041,6 +2104,75 @@ const style = `
   .auth-mode-toggle button.active {
     background: var(--accent);
     color: #fff;
+  }
+  .auth-stepbar {
+    display: inline-flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .auth-stepbar span {
+    border: 1px solid var(--border2);
+    border-radius: 999px;
+    font-size: 11px;
+    padding: 5px 10px;
+    color: var(--muted);
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  .auth-stepbar span.done {
+    background: #e9f3ff;
+    color: #0f4172;
+    border-color: #bdd5ee;
+  }
+  .auth-role-row {
+    display: flex;
+    gap: 8px;
+  }
+  .auth-role-row .filter-pill {
+    flex: 1;
+  }
+  .auth-profile-card {
+    border: 1px solid var(--border);
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 8px;
+  }
+  .auth-profile-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .auth-profile-head h3 {
+    font-family: var(--font-head);
+    font-size: 19px;
+    line-height: 1;
+    margin-bottom: 3px;
+  }
+  .auth-profile-head p {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .auth-skip-btn {
+    border: 1px solid var(--border2);
+    background: #fff;
+    color: var(--muted);
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 8px 10px;
+    cursor: pointer;
+  }
+  .auth-skip-btn.active {
+    border-color: #85a7cf;
+    color: #0f4172;
+    background: #e8f2ff;
   }
 
   .settings-panel { max-width: 820px; }
@@ -2559,7 +2691,16 @@ const style = `
   @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
   @media (max-width: 980px) {
-    .auth-card { padding: 28px; }
+    .auth-grid {
+      grid-template-columns: 1fr;
+      min-height: calc(100vh - 52px);
+    }
+    .auth-brand {
+      padding: 24px;
+      gap: 10px;
+    }
+    .auth-brand h2 { font-size: 29px; }
+    .auth-card { padding: 24px; }
     .profile-grid { grid-template-columns: 1fr; }
     .prof-layout { grid-template-columns: 1fr; }
     .landing-title { font-size: 32px; }
@@ -2610,8 +2751,24 @@ const style = `
     .dashboard-grid { grid-template-columns: 1fr; }
     .hero { padding-top: 58px; }
     .modal-body { padding: 14px; }
-    .auth-shell { padding: 22px 14px; }
-    .auth-card { padding: 24px; }
+    .auth-shell {
+      padding: 0;
+      align-items: flex-start;
+    }
+    .auth-brand {
+      padding: 18px 16px;
+    }
+    .auth-brand h2 { font-size: 25px; }
+    .auth-card { padding: 18px 14px; }
+    .auth-header h1 { font-size: 26px; }
+    .auth-mode-toggle button {
+      font-size: 10px;
+      padding: 9px 7px;
+    }
+    .auth-profile-head {
+      flex-direction: column;
+      align-items: stretch;
+    }
     .market-toolbar { align-items: stretch; }
     .landing-search {
       display: grid;
@@ -4109,7 +4266,7 @@ function NavbarComponent() {
   
   return (
     <nav className="nav">
-      <div className="nav-logo" onClick={() => goTo('/')}>BidDown</div>
+      <div className="nav-logo" onClick={() => goTo('/')}>BraFom</div>
       <div className="nav-tabs">
         {navItems.map((item) => (
           <button

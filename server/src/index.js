@@ -85,6 +85,6 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
-  console.log(`BidDown server running on port ${PORT}`);
+  console.log(`BraFom server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
 });

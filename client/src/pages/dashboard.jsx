@@ -41,7 +41,7 @@ function normalizeJob(jobRef) {
 
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const { user } = useAuthStore()
+  const { user, setUser } = useAuthStore()
   const { activeRole, setActiveRole } = usePreferencesStore()
 
   const [jobs, setJobs] = useState([])
@@ -52,13 +52,15 @@ export default function DashboardPage() {
     const load = async () => {
       setLoading(true)
       try {
-        const [allJobsRes, bidsRes] = await Promise.all([
+        const [allJobsRes, bidsRes, meRes] = await Promise.all([
           api.getJobs({ status: 'all', limit: 300 }),
           api.getMyBids(),
+          api.getMe(),
         ])
 
         setJobs(allJobsRes.data.jobs || [])
         setMyBids(bidsRes.data || [])
+        if (meRes.data) setUser(meRes.data)
       } catch (err) {
         toast.error(err?.response?.data?.error || 'Failed to load dashboard')
       } finally {
@@ -160,7 +162,7 @@ export default function DashboardPage() {
   const platformFee = Math.round(allTimeEarned * 0.08)
   const netPaidOut = allTimeEarned - platformFee
 
-  const avgRating = Number(user?.average_rating || 4.9).toFixed(1)
+  const avgRating = Number(user?.average_rating ?? 0).toFixed(1)
   const totalReviews = user?.reviews_count || 0
   const winRate = myBids.length ? Math.round((acceptedBids.length / myBids.length) * 100) : 0
 
@@ -206,7 +208,6 @@ export default function DashboardPage() {
             <article className="dd-kpi">
               <div className="dd-kpi-label">This month</div>
               <div className="dd-kpi-value green">GH¢ {thisMonthEarnings.toLocaleString()}</div>
-              <div className="dd-kpi-sub">↑ 22% vs last month</div>
             </article>
             <article className="dd-kpi">
               <div className="dd-kpi-label">Active bids</div>

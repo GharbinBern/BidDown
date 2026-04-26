@@ -357,11 +357,7 @@ function BiddingView({ job, bids, myBid, isAuth, onBidSubmit }) {
               </div>
             </div>
 
-            {tags.length > 0 && (
-              <div className="jd-tags">
-                {tags.map((t, i) => <span key={i} className="jd-tag">{t}</span>)}
-              </div>
-            )}
+
           </div>
 
           <div className="jd-section-card">

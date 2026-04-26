@@ -546,11 +546,7 @@ function sampleIntakeDetails(category) {
         deliverables: randomFrom(['80+ edited photos', '150 edited photos + gallery link', 'Web + print formats', 'Same-day social media preview']),
       };
     case 'Cleaning':
-      return {
-        property_size: randomFrom(['2-bedroom apartment', '3-bedroom apartment', '4-bedroom house', 'Office – 200sqm', 'Residential estate']),
-        frequency: randomFrom(['One-time deep clean', 'Weekly recurring', 'Monthly recurring', 'Post-event/renovation']),
-        supplies_provided: randomFrom(['Yes', 'No – team must supply']),
-      };
+      return {};
     case 'Delivery':
       return {
         pickup_location: randomFrom(['Tema', 'Spintex', 'Dansoman', 'Darkuman', 'Madina', 'Accra CBD']),
