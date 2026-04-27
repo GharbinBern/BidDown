@@ -73,10 +73,6 @@ export const api = {
   getMarketAnalytics: () => client.get('/analytics/market'),
   getCategoryAnalytics: () => client.get('/analytics/categories'),
   getBidAnalytics: () => client.get('/analytics/bids'),
-
-  // Payments
-  createPaymentIntent: (data) => client.post('/payments/create-intent', data),
-  confirmPayment: (data) => client.post('/payments/confirm', data),
 }
 
 export default client

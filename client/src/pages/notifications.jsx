@@ -6,6 +6,8 @@ import {
   CheckCheck,
   CircleDollarSign,
   Clock3,
+  FileText,
+  AlertTriangle,
   Shield,
   Star,
   Trophy,
@@ -47,6 +49,8 @@ function getRelativeBucket(value) {
 function categoryForNotification(item) {
   if (item.type === 'escrow') return 'payments'
   if (item.type === 'lost' || item.type === 'won' || item.type === 'accepted') return 'bids'
+  if (item.type === 'workflow') return 'system'
+  if (item.type === 'dispute') return 'system'
   return 'system'
 }
 
@@ -56,6 +60,8 @@ function iconForNotification(item) {
   if (item.type === 'escrow') return <CircleDollarSign size={16} />
   if (item.type === 'review') return <Star size={16} />
   if (item.type === 'job') return <Clock3 size={16} />
+  if (item.type === 'workflow') return <FileText size={16} />
+  if (item.type === 'dispute') return <AlertTriangle size={16} />
   return <Shield size={16} />
 }
 
@@ -65,6 +71,8 @@ function iconBgForNotification(item) {
   if (item.type === 'escrow') return '#e7f0de'
   if (item.type === 'review') return '#e8f0de'
   if (item.type === 'job') return '#e8eff7'
+  if (item.type === 'workflow') return '#e8f0fa'
+  if (item.type === 'dispute') return '#fdf0e7'
   return '#ece9df'
 }
 
@@ -74,6 +82,8 @@ function iconColorForNotification(item) {
   if (item.type === 'escrow') return '#7b6a20'
   if (item.type === 'review') return '#3d5f2b'
   if (item.type === 'job') return '#486e93'
+  if (item.type === 'workflow') return '#2f5fa0'
+  if (item.type === 'dispute') return '#c2621a'
   return '#8a7332'
 }
 
@@ -138,6 +148,7 @@ export default function NotificationsPage() {
       <article
         key={item.id}
         onClick={() => {
+          if (isUnread) markRead(item.id, user)
           if (item.jobId) navigate(`/jobs/${item.jobId}`)
         }}
         style={{

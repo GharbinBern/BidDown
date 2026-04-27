@@ -6,7 +6,7 @@ import User from '../models/User.js';
 import Bid from '../models/Bid.js';
 import Job from '../models/Job.js';
 import Review from '../models/Review.js';
-import ProviderProfile from '../models/ProviderProfile.js';
+import ProviderProfile from '../models/Provider.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();

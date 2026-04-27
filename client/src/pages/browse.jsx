@@ -41,7 +41,7 @@ function msFromNow(deadline) {
 
 function getLocation(job) {
   const d = job.intake_details || {}
-  return d.location || d.pickup_location || d.event_date || ''
+  return d.location || d.pickup_location || d.dropoff_location || d.event_location || ''
 }
 
 function getTags(job) {
@@ -229,7 +229,7 @@ function BidModal({ job, onClose, onSubmit }) {
 }
 
 /* ─── request card ───────────────────────────────────────── */
-function RequestCard({ job, myBid, onBid }) {
+function RequestCard({ job, myBid, onBid, currentUserId }) {
   const navigate = useNavigate()
   const ms = msFromNow(job.deadline)
   const bidsCount = Number(job.bids_count || 0)
@@ -238,6 +238,7 @@ function RequestCard({ job, myBid, onBid }) {
   const tags = getTags(job)
   const owner = job.owner_id || {}
   const ownerId = normalizeUserId(owner._id || owner)
+  const isOwner = !!currentUserId && !!ownerId && String(currentUserId) === String(ownerId)
   const ownerName = owner.name || 'Client'
   const ownerRating = owner.average_rating || 0
   const lowestBid = Array.isArray(job.bids) && job.bids.length
@@ -307,7 +308,9 @@ function RequestCard({ job, myBid, onBid }) {
           </button>
         </div>
 
-        {hasBid ? (
+        {isOwner ? (
+          <div className="br-bid-placed">Your request</div>
+        ) : hasBid ? (
           <div className="br-bid-placed">Bid placed: GH¢ {Number(myBid.amount).toLocaleString()}</div>
         ) : bidWon ? (
           <div className="br-bid-won">You won</div>
@@ -319,7 +322,7 @@ function RequestCard({ job, myBid, onBid }) {
             className="br-bid-btn"
             onClick={(e) => { e.stopPropagation(); navigate(`/jobs/${job._id}`) }}
           >
-            Place Bid →
+            Place Bid
           </button>
         )}
       </div>
@@ -354,7 +357,7 @@ export default function BrowsePage() {
   const [city, setCity] = useState('All Cities')
   const [closingWindow, setClosingWindow] = useState([])   // '6h','24h','3d','any'
   const [minRating, setMinRating] = useState('any')        // 'any','4.0','4.5','5.0'
-  const [statusFilters, setStatusFilters] = useState(['open', 'closing'])
+  const [statusFilters, setStatusFilters] = useState(['open', 'closing', 'nobids'])
   const [sortBy, setSortBy] = useState('endingSoon')
   const [viewMode, setViewMode] = useState('list')
   const [page, setPage] = useState(1)
@@ -479,7 +482,7 @@ export default function BrowsePage() {
     setCity('All Cities')
     setClosingWindow([])
     setMinRating('any')
-    setStatusFilters(['open', 'closing'])
+    setStatusFilters(['open', 'closing', 'nobids'])
     setSearch('')
   }
 
@@ -688,6 +691,7 @@ export default function BrowsePage() {
                 key={job._id}
                 job={job}
                 myBid={myBidByJobId[String(job._id)]}
+                currentUserId={user?._id || user?.id}
                 onBid={(j) => {
                   if (!user) { navigate('/login'); return }
                   setBidJob(j)

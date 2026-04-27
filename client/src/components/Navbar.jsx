@@ -1,70 +1,100 @@
-import { Link, useLocation } from 'react-router-dom'
-import { useAuthStore } from '../store'
+import { useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { Bell } from 'lucide-react'
+import { useAuthStore, useNotificationsStore, usePreferencesStore } from '../store'
 
 export default function Navbar() {
   const { isAuthenticated, user, logout } = useAuthStore()
+  const unreadCount = useNotificationsStore((state) => state.unreadCount)
+  const activeRole = usePreferencesStore((state) => state.activeRole)
+  const navigate = useNavigate()
   const location = useLocation()
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const roles = user?.roles || []
+  const isBuyer = roles.includes('buyer')
+  const isSeller = roles.includes('seller')
+  const canPostJob = isAuthenticated && isBuyer && (!isSeller || activeRole === 'buyer')
 
-  const isActive = (path) => location.pathname === path
+  const navItems = isAuthenticated
+    ? [
+        { label: 'Browse Requests', path: '/browse' },
+        { label: 'Dashboard', path: '/dashboard' },
+      ]
+    : [
+        { label: 'Browse Requests', path: '/browse' },
+      ]
+
+  const goTo = (path) => {
+    navigate(path)
+    setMobileOpen(false)
+  }
 
   return (
-    <nav className="bg-stone-900 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-13">
-          <Link to="/" className="flex items-center gap-1">
-            <span className="text-lg font-bold text-green-500">Bid</span>
-            <span className="text-lg font-bold text-white">Down</span>
-          </Link>
-
-          <div className="flex items-center gap-6">
-            {isAuthenticated && (
-              <div className="flex gap-4">
-                <Link
-                  to="/marketplace"
-                  className={`text-sm font-medium transition-colors ${
-                    isActive('/marketplace')
-                      ? 'text-white'
-                      : 'text-stone-400 hover:text-white'
-                  }`}
-                >
-                  Marketplace
-                </Link>
-                <Link
-                  to="/dashboard"
-                  className={`text-sm font-medium transition-colors ${
-                    isActive('/dashboard')
-                      ? 'text-white'
-                      : 'text-stone-400 hover:text-white'
-                  }`}
-                >
-                  My Space
-                </Link>
-              </div>
-            )}
-
-            {isAuthenticated ? (
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-stone-300">{user?.name}</span>
-                <button
-                  onClick={logout}
-                  className="btn-ghost btn-sm"
-                >
-                  Sign Out
-                </button>
-              </div>
-            ) : (
-              <div className="flex gap-3">
-                <Link to="/login" className="text-sm text-stone-400 hover:text-white transition-colors">
-                  Sign In
-                </Link>
-                <Link to="/register" className="btn-primary btn-sm">
-                  Sign Up
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
+    <nav className="nav">
+      <div className="nav-logo" onClick={() => goTo('/')}>BraFom</div>
+      <div className="nav-tabs">
+        {navItems.map((item) => (
+          <button
+            key={item.path}
+            className={`nav-tab ${location.pathname.startsWith(item.path) ? 'active' : ''}`}
+            onClick={() => goTo(item.path)}
+          >
+            {item.label}
+          </button>
+        ))}
       </div>
+      <div className="nav-right">
+        {isAuthenticated ? (
+          <>
+            {canPostJob && (
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => goTo('/post-job')}>
+                Post a Job
+              </button>
+            )}
+            <button type="button" className="nav-notif-btn" onClick={() => goTo('/notifications')} aria-label="Notifications">
+              <Bell size={16} />
+              {unreadCount > 0 && <span className="nav-unread">{Math.min(unreadCount, 99)}</span>}
+            </button>
+            <button type="button" className="nav-user-link" onClick={() => goTo('/profile')}>
+              {user?.name}
+            </button>
+          </>
+        ) : (
+          <button className="btn btn-primary btn-sm" onClick={() => goTo('/login')}>Get Started</button>
+        )}
+      </div>
+      <button type="button" className="nav-mobile-toggle" onClick={() => setMobileOpen((prev) => !prev)}>
+        {mobileOpen ? 'Close' : 'Menu'}
+      </button>
+      {mobileOpen && (
+        <div className="nav-mobile-panel">
+          {isAuthenticated && (
+            <div className="nav-mobile-group">
+              {navItems.map((item) => (
+                <button
+                  key={item.path}
+                  type="button"
+                  className={`nav-tab ${location.pathname.startsWith(item.path) ? 'active' : ''}`}
+                  onClick={() => goTo(item.path)}
+                >
+                  {item.label}
+                </button>
+              ))}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => goTo('/notifications')}>
+                Notifications {unreadCount > 0 ? `(${Math.min(unreadCount, 99)})` : ''}
+              </button>
+              {canPostJob && (
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => goTo('/post-job')}>
+                  Post a Job
+                </button>
+              )}
+              <button type="button" className="nav-user-link" onClick={() => goTo('/profile')}>
+                {user?.name}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </nav>
   )
 }

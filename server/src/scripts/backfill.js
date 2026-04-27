@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import Job from './models/Job.js';
+import Job from '../models/Job.js';
 
 dotenv.config();
 

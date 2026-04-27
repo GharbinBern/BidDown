@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "description": "BidDown API – Reverse auction marketplace backend",
   "type": "module",
-  "main": "src/index.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
     "test": "jest --passWithNoTests",
-    "validate": "node --check src/index.js && node --check src/routes/jobs.js",
+    "validate": "node --check src/server.js && node --check src/routes/jobs.js",
     "seed": "node src/seed.js",
-    "migrate:workflow": "node src/backfillWorkflowStage.js"
+    "migrate:workflow": "node src/scripts/backfill.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

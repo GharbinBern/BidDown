@@ -159,7 +159,7 @@ export default function HomePage() {
         <div className="landing-wrap">
           <div className="landing-head-row">
             <h2 className="landing-section-title">Active service requests</h2>
-            <button type="button" className="landing-link" onClick={() => navigate('/browse')}>View all requests →</button>
+            <button type="button" className="landing-link" onClick={() => navigate('/browse')}>View all requests</button>
           </div>
           <div className="landing-request-grid">
             {featuredJobs.map((job, index) => {
@@ -211,7 +211,7 @@ export default function HomePage() {
         <div className="landing-wrap">
           <div className="landing-head-row">
             <h2 className="landing-section-title">Browse by service category</h2>
-            <button type="button" className="landing-link" onClick={() => navigate('/browse')}>All categories →</button>
+            <button type="button" className="landing-link" onClick={() => navigate('/browse')}>All categories</button>
           </div>
           <div className="landing-category-grid">
             {CATEGORY_BLOCKS.map((category) => (

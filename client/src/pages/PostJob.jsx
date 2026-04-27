@@ -32,6 +32,7 @@ const DEFAULT_REQUIREMENTS = {
   Delivery: ['Vehicle details required', 'Proof of delivery expected'],
   'Design & Print': ['Share previous work', 'Include revision count'],
 }
+const QUICK_TEST_CLOSE_MINUTES = 10
 
 function emptyForm() {
   return {
@@ -43,12 +44,16 @@ function emptyForm() {
     neighborhood: '',
     budget: '',
     daysUntilDeadline: 3,
+    quickClose10m: false,
     preferredCompletionDate: '',
     requirements: [...DEFAULT_REQUIREMENTS['Home Repairs']],
   }
 }
 
-function toIsoDeadline(days) {
+function toIsoDeadline(days, quickClose10m) {
+  if (quickClose10m) {
+    return new Date(Date.now() + QUICK_TEST_CLOSE_MINUTES * 60 * 1000).toISOString()
+  }
   return new Date(Date.now() + Number(days) * 24 * 60 * 60 * 1000).toISOString()
 }
 
@@ -138,7 +143,7 @@ export default function PostJobPage() {
 
   const step1Done = !!form.category
   const step2Done = form.title.trim().length >= 8 && form.description.trim().length >= 40 && !!form.city && !!form.neighborhood
-  const step3Done = Number(form.budget) >= 50 && Number(form.daysUntilDeadline) >= 1
+  const step3Done = Number(form.budget) >= 50 && (form.quickClose10m || Number(form.daysUntilDeadline) >= 1)
   const readyToPublish = step1Done && step2Done && step3Done
 
   const preview = useMemo(() => {
@@ -153,7 +158,9 @@ export default function PostJobPage() {
       bids,
       category: form.category,
       location: [form.neighborhood || 'East Legon', form.city || 'Accra'].filter(Boolean).join(', '),
-      closingLabel: `In ${Math.max(1, Number(form.daysUntilDeadline) || 3)} day${Number(form.daysUntilDeadline) === 1 ? '' : 's'}`,
+      closingLabel: form.quickClose10m
+        ? `In ${QUICK_TEST_CLOSE_MINUTES} minutes (test)`
+        : `In ${Math.max(1, Number(form.daysUntilDeadline) || 3)} day${Number(form.daysUntilDeadline) === 1 ? '' : 's'}`,
       status: 'Open',
       tags: form.requirements.slice(0, 3),
     }
@@ -200,7 +207,7 @@ export default function PostJobPage() {
         description: form.description.trim(),
         category: form.category,
         budget: Number(form.budget),
-        deadline: toIsoDeadline(form.daysUntilDeadline),
+        deadline: toIsoDeadline(form.daysUntilDeadline, form.quickClose10m),
         intake_details: buildIntakeDetails(form),
       }
       const job = await createJob(payload)
@@ -388,6 +395,14 @@ export default function PostJobPage() {
                   <option value={3}>3 days</option>
                   <option value={7}>7 days</option>
                 </select>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: 'var(--muted)' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!form.quickClose10m}
+                    onChange={(e) => setForm((p) => ({ ...p, quickClose10m: e.target.checked }))}
+                  />
+                  Close in 10 minutes (temporary testing)
+                </label>
               </div>
             </div>
 

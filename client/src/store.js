@@ -196,7 +196,7 @@ const buildNotifications = ({ myBids, jobs, userId }) => {
         id: `bid-accepted-${bidId}`,
         type: 'won',
         title: `You won: ${title}`,
-        detail: `Your bid of $${bidAmount} was accepted.`,
+        detail: `Your bid of GH¢ ${bidAmount} was accepted.`,
         timestamp: toEventTime(bid.accepted_date || bid.updatedAt, bid.createdAt),
         jobId: jobId ? String(jobId) : null,
       })
@@ -207,7 +207,7 @@ const buildNotifications = ({ myBids, jobs, userId }) => {
         id: `bid-rejected-${bidId}`,
         type: 'lost',
         title: `Bid not selected: ${title}`,
-        detail: `Your bid of $${bidAmount} was not chosen for this request.`,
+        detail: `Your bid of GH¢ ${bidAmount} was not chosen for this request.`,
         timestamp: toEventTime(bid.updatedAt, bid.createdAt),
         jobId: jobId ? String(jobId) : null,
       })
@@ -223,6 +223,71 @@ const buildNotifications = ({ myBids, jobs, userId }) => {
         jobId: jobId ? String(jobId) : null,
       })
     }
+
+    // Workflow stage notifications for seller
+    const stage = bid.job_id?.workflow_stage
+    if (bid.status === 'accepted' && stage) {
+      if (stage === 'contract') {
+        events.push({
+          id: `wf-contract-seller-${bidId}`,
+          type: 'workflow',
+          title: `Contract ready: ${title}`,
+          detail: 'Review and confirm the contract terms to proceed.',
+          timestamp: toEventTime(bid.job_id?.updatedAt, bid.createdAt),
+          jobId: jobId ? String(jobId) : null,
+        })
+      }
+      if (stage === 'escrow' || stage === 'in_progress') {
+        events.push({
+          id: `wf-escrow-seller-${bidId}`,
+          type: 'workflow',
+          title: `Contract confirmed: ${title}`,
+          detail: 'Contract is confirmed. Waiting for the client to deposit escrow before work begins.',
+          timestamp: toEventTime(bid.job_id?.updatedAt, bid.createdAt),
+          jobId: jobId ? String(jobId) : null,
+        })
+      }
+      if (stage === 'in_progress') {
+        events.push({
+          id: `wf-inprogress-seller-${bidId}`,
+          type: 'workflow',
+          title: `Escrow funded: ${title}`,
+          detail: 'The client has deposited escrow. You can now start work.',
+          timestamp: toEventTime(bid.job_id?.updatedAt, bid.createdAt),
+          jobId: jobId ? String(jobId) : null,
+        })
+      }
+      if (stage === 'review') {
+        events.push({
+          id: `wf-review-seller-${bidId}`,
+          type: 'workflow',
+          title: `Awaiting review: ${title}`,
+          detail: 'Your work has been submitted and is awaiting buyer review.',
+          timestamp: toEventTime(bid.job_id?.updatedAt, bid.createdAt),
+          jobId: jobId ? String(jobId) : null,
+        })
+      }
+      if (stage === 'completed') {
+        events.push({
+          id: `wf-done-seller-${bidId}`,
+          type: 'workflow',
+          title: `Work approved: ${title}`,
+          detail: 'The buyer approved your work. Payment will be released.',
+          timestamp: toEventTime(bid.job_id?.updatedAt, bid.createdAt),
+          jobId: jobId ? String(jobId) : null,
+        })
+      }
+      if (bid.job_id?.dispute_raised) {
+        events.push({
+          id: `wf-dispute-seller-${bidId}`,
+          type: 'dispute',
+          title: `Dispute raised: ${title}`,
+          detail: 'A dispute has been opened on this job. Please check the job for details.',
+          timestamp: toEventTime(bid.job_id?.dispute_raised_at || bid.job_id?.updatedAt, bid.createdAt),
+          jobId: jobId ? String(jobId) : null,
+        })
+      }
+    }
   })
 
   jobs
@@ -236,6 +301,64 @@ const buildNotifications = ({ myBids, jobs, userId }) => {
         timestamp: toEventTime(job.updatedAt, job.createdAt),
         jobId: String(job._id),
       })
+    })
+
+  // Buyer workflow notifications
+  jobs
+    .filter((job) => String(job.owner_id?._id || job.owner_id) === String(userId) && job.winning_bid_id)
+    .forEach((job) => {
+      const stage = job.workflow_stage
+      const jid = String(job._id)
+      if (stage === 'escrow') {
+        events.push({
+          id: `wf-escrow-buyer-${jid}`,
+          type: 'workflow',
+          title: `Contract confirmed: ${job.title}`,
+          detail: 'Both parties confirmed the contract. Please deposit escrow to start work.',
+          timestamp: toEventTime(job.updatedAt, job.createdAt),
+          jobId: jid,
+        })
+      }
+      if (stage === 'in_progress') {
+        events.push({
+          id: `wf-inprogress-buyer-${jid}`,
+          type: 'workflow',
+          title: `Escrow funded. Work started: ${job.title}`,
+          detail: 'Escrow was deposited and the provider has started work.',
+          timestamp: toEventTime(job.updatedAt, job.createdAt),
+          jobId: jid,
+        })
+      }
+      if (stage === 'review') {
+        events.push({
+          id: `wf-review-buyer-${jid}`,
+          type: 'workflow',
+          title: `Work submitted: ${job.title}`,
+          detail: 'The provider submitted their work. Please review and approve.',
+          timestamp: toEventTime(job.updatedAt, job.createdAt),
+          jobId: jid,
+        })
+      }
+      if (stage === 'completed') {
+        events.push({
+          id: `wf-done-buyer-${jid}`,
+          type: 'workflow',
+          title: `Completed: ${job.title}`,
+          detail: 'Work approved. Escrow has been released to the provider.',
+          timestamp: toEventTime(job.updatedAt, job.createdAt),
+          jobId: jid,
+        })
+      }
+      if (job.dispute_raised) {
+        events.push({
+          id: `wf-dispute-buyer-${jid}`,
+          type: 'dispute',
+          title: `Dispute raised: ${job.title}`,
+          detail: 'A dispute has been opened on this job. Please check the job for details.',
+          timestamp: toEventTime(job.dispute_raised_at || job.updatedAt, job.createdAt),
+          jobId: jid,
+        })
+      }
     })
 
   return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())

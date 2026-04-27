@@ -9,7 +9,10 @@ export const authMiddleware = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.id;
+    req.userId = decoded.id || decoded.userId || decoded.sub;
+    if (!req.userId) {
+      return res.status(401).json({ error: 'Invalid token payload' });
+    }
     req.user = decoded;
     next();
   } catch (error) {
@@ -23,7 +26,7 @@ export const optionalAuth = (req, res, next) => {
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.userId = decoded.id;
+      req.userId = decoded.id || decoded.userId || decoded.sub;
       req.user = decoded;
     } catch (error) {
       // Token invalid but that's ok for optional auth

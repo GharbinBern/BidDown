@@ -93,7 +93,7 @@ router.post('/', authMiddleware, [
 router.get('/my-bids', authMiddleware, async (req, res, next) => {
   try {
     const bids = await Bid.find({ seller_id: req.userId })
-      .populate('job_id', 'title budget status workflow_stage deadline escrow_released')
+      .populate('job_id', 'title budget status workflow_stage deadline escrow_released bids_count category subcategory intake_details owner_id')
       .sort({ createdAt: -1 });
 
     res.json(bids);
@@ -102,7 +102,7 @@ router.get('/my-bids', authMiddleware, async (req, res, next) => {
   }
 });
 
-// Get bids for a job (owner only)
+// Get bids for a job (owner sees all, sellers see only their own)
 router.get('/job/:jobId', authMiddleware, async (req, res, next) => {
   try {
     const job = await Job.findById(req.params.jobId);
@@ -111,15 +111,19 @@ router.get('/job/:jobId', authMiddleware, async (req, res, next) => {
       return res.status(404).json({ error: 'Job not found' });
     }
 
-    if (job.owner_id.toString() !== req.userId) {
-      return res.status(403).json({ error: 'Not authorized' });
+    // If requester is the job owner, return all bids
+    if (job.owner_id.toString() === req.userId) {
+      const bids = await Bid.find({ job_id: req.params.jobId })
+        .populate('seller_id', 'name avatar average_rating')
+        .sort({ amount: 1 });
+      return res.json(bids);
     }
 
-    const bids = await Bid.find({ job_id: req.params.jobId })
-      .populate('seller_id', 'name avatar average_rating')
-      .sort({ amount: 1 });
-
-    res.json(bids);
+    // If requester is not the owner, return only their own bid (if they have one)
+    const bid = await Bid.findOne({ job_id: req.params.jobId, seller_id: req.userId })
+      .populate('seller_id', 'name avatar average_rating');
+    
+    res.json(bid ? [bid] : []);
   } catch (err) {
     next(err);
   }

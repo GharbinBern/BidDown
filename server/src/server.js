@@ -9,9 +9,8 @@ import jobRoutes from './routes/jobs.js';
 import bidRoutes from './routes/bids.js';
 import reviewRoutes from './routes/reviews.js';
 import analyticsRoutes from './routes/analytics.js';
-import paymentRoutes from './routes/payments.js';
 
-import errorHandler from './middleware/errorHandler.js';
+import errorHandler from './middleware/errors.js';
 
 dotenv.config();
 
@@ -68,7 +67,6 @@ app.use('/api/jobs', requireDbConnection, jobRoutes);
 app.use('/api/bids', requireDbConnection, bidRoutes);
 app.use('/api/reviews', requireDbConnection, reviewRoutes);
 app.use('/api/analytics', requireDbConnection, analyticsRoutes);
-app.use('/api/payments', requireDbConnection, paymentRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

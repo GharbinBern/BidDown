@@ -320,8 +320,13 @@ router.post('/:id/close', authMiddleware, async (req, res, next) => {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    if (job.status !== 'open') {
-      return res.status(400).json({ error: 'Job already closed' });
+    const isAwardableOpen = job.status === 'open';
+    const isAwardableClosed = job.status === 'closed' && !job.winning_bid_id;
+    if (!isAwardableOpen && !isAwardableClosed) {
+      if (job.winning_bid_id) {
+        return res.status(400).json({ error: 'Winner already selected for this job' });
+      }
+      return res.status(400).json({ error: 'Job cannot be awarded in its current state' });
     }
 
     const bid = await Bid.findById(bid_id);

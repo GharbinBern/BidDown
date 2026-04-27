@@ -12,6 +12,14 @@ import {
 import { api } from '../api'
 import { useAuthStore } from '../store'
 
+const AVATAR_COLORS = ['#2563eb', '#16a34a', '#d97706', '#9333ea', '#0891b2', '#e11d48', '#6366f1', '#0d9488']
+function avatarBg(name) {
+  if (!name) return AVATAR_COLORS[0]
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff
+  return AVATAR_COLORS[h % AVATAR_COLORS.length]
+}
+
 const CATEGORY_SPECIALISATIONS = {
   'Home Repairs': [
     'Leak detection',
@@ -365,9 +373,9 @@ export default function SettingsPage() {
                 height: 82,
                 borderRadius: '50%',
                 margin: '0 auto 10px',
-                background: '#f0f2f5',
-                color: 'var(--text)',
-                border: '1px solid #d4dbe5',
+                background: avatarBg(user?.name),
+                color: '#fff',
+                border: 'none',
                 fontWeight: 800,
                 display: 'grid',
                 placeItems: 'center',

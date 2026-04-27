@@ -90,7 +90,18 @@ export default function DashboardPage() {
   )
 
   const myActiveBids = useMemo(() => {
-    const pending = myBids.filter((b) => b.status === 'pending')
+    const pending = myBids.filter((b) => {
+      if (b.status !== 'pending') return false
+      const job = normalizeJob(b.job_id)
+      if (!job) return false
+      if (job.status && job.status !== 'open') return false
+
+      const deadlineMs = job.deadline ? new Date(job.deadline).getTime() : null
+      if (deadlineMs && !Number.isNaN(deadlineMs) && deadlineMs <= Date.now()) return false
+
+      return true
+    })
+
     return pending
       .map((b, idx) => {
         const job = normalizeJob(b.job_id)
@@ -109,7 +120,7 @@ export default function DashboardPage() {
   )
 
   const inProgress = useMemo(
-    () => acceptedBids.filter(({ job }) => !['completed', 'closed'].includes(job?.status)).slice(0, 1),
+    () => acceptedBids.filter(({ job }) => !['completed', 'cancelled'].includes(job?.status)),
     [acceptedBids]
   )
 
@@ -159,6 +170,54 @@ export default function DashboardPage() {
     [acceptedBids]
   )
 
+  // Buyer-specific metrics
+  const buyerPostsOpen = useMemo(
+    () => myRequests.filter((j) => j.status === 'open').length,
+    [myRequests]
+  )
+
+  const buyerPostsClosed = useMemo(
+    () => myRequests.filter((j) => j.status === 'closed' && !j.winning_bid_id).length,
+    [myRequests]
+  )
+
+  const buyerOpenJobs = useMemo(
+    () => myRequests.filter((j) => j.status === 'open'),
+    [myRequests]
+  )
+
+  const buyerAwaitingAwardJobs = useMemo(
+    () => myRequests.filter((j) => j.status === 'closed' && !j.winning_bid_id),
+    [myRequests]
+  )
+
+  const buyerActiveContracts = useMemo(
+    () => myRequests.filter((j) => j.winning_bid_id && !['completed', 'cancelled'].includes(j.status)),
+    [myRequests]
+  )
+
+  const buyerCompletedJobs = useMemo(
+    () => myRequests.filter((j) => j.status === 'completed').length,
+    [myRequests]
+  )
+
+  const totalBidsCost = useMemo(() => {
+    return myRequests
+      .filter((j) => j.winning_bid_id)
+      .reduce((sum, j) => sum + Number(j.escrow_amount || 0), 0)
+  }, [myRequests])
+
+  const totalSpent = useMemo(() => {
+    return myRequests
+      .filter((j) => j.escrow_released)
+      .reduce((sum, j) => sum + Number(j.escrow_amount || 0), 0)
+  }, [myRequests])
+
+  const totalDisputes = useMemo(
+    () => myRequests.filter((j) => j.dispute_raised).length,
+    [myRequests]
+  )
+
   const platformFee = Math.round(allTimeEarned * 0.08)
   const netPaidOut = allTimeEarned - platformFee
 
@@ -168,7 +227,7 @@ export default function DashboardPage() {
 
   const topMessage = roleMode === 'seller'
     ? `Good morning, ${user?.name?.split(' ')[0] || 'there'} — you have ${myActiveBids.length} active bids and ${inProgress.length} job in progress.`
-    : `Good morning, ${user?.name?.split(' ')[0] || 'there'} — you have ${myRequests.filter((j) => j.status === 'open').length} active requests.`
+    : `Good morning, ${user?.name?.split(' ')[0] || 'there'} — you have ${buyerPostsOpen} active requests, ${buyerPostsClosed} awaiting award, and ${buyerActiveContracts.length} ongoing work.`
 
   if (loading) {
     return <div className="main" style={{ paddingTop: 20, color: 'var(--muted)' }}>Loading dashboard…</div>
@@ -183,145 +242,293 @@ export default function DashboardPage() {
             <button className="dd-nav-item active" type="button">Dashboard</button>
             <button className="dd-nav-item" type="button" onClick={() => navigate('/profile')}>My Profile</button>
           </div>
-          <div className="dd-nav-group">
-            <div className="dd-nav-head">Bidding</div>
-            <button className="dd-nav-item" type="button" onClick={() => navigate('/browse')}>Active Bids <span>{myActiveBids.length}</span></button>
-            <button className="dd-nav-item" type="button">Bid History</button>
-            <button className="dd-nav-item" type="button" onClick={() => navigate('/browse')}>Matching Jobs <span>{matchingJobs.length}</span></button>
-          </div>
-          <div className="dd-nav-group">
-            <div className="dd-nav-head">Work</div>
-            <button className="dd-nav-item" type="button">In Progress <span>{inProgress.length}</span></button>
-            <button className="dd-nav-item" type="button">Completed Jobs</button>
-            <button className="dd-nav-item" type="button">Disputes</button>
-          </div>
-          <div className="dd-nav-group">
-            <div className="dd-nav-head">Account</div>
-            <button className="dd-nav-item" type="button">Earnings</button>
-            <button className="dd-nav-item" type="button">Verification</button>
-            <button className="dd-nav-item" type="button" onClick={() => navigate('/profile')}>Settings</button>
-          </div>
+
+          {roleMode === 'seller' ? (
+            <>
+              <div className="dd-nav-group">
+                <div className="dd-nav-head">Bidding</div>
+                <button className="dd-nav-item" type="button" onClick={() => navigate('/browse')}>Active Bids <span>{myActiveBids.length}</span></button>
+                <button className="dd-nav-item" type="button">Bid History</button>
+                <button className="dd-nav-item" type="button" onClick={() => navigate('/browse')}>Matching Jobs <span>{matchingJobs.length}</span></button>
+              </div>
+              <div className="dd-nav-group">
+                <div className="dd-nav-head">Work</div>
+                <button className="dd-nav-item" type="button">In Progress <span>{inProgress.length}</span></button>
+                <button className="dd-nav-item" type="button">Completed Jobs</button>
+                <button className="dd-nav-item" type="button">Disputes</button>
+              </div>
+              <div className="dd-nav-group">
+                <div className="dd-nav-head">Account</div>
+                <button className="dd-nav-item" type="button">Earnings</button>
+                <button className="dd-nav-item" type="button">Verification</button>
+                <button className="dd-nav-item" type="button" onClick={() => navigate('/profile')}>Settings</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="dd-nav-group">
+                <div className="dd-nav-head">Hiring</div>
+                <button className="dd-nav-item" type="button" onClick={() => navigate('/post-job')}>Post New Job</button>
+                <button className="dd-nav-item" type="button">Posted Jobs <span>{myRequests.length}</span></button>
+                <button className="dd-nav-item" type="button">Open Auctions <span>{buyerPostsOpen}</span></button>
+                <button className="dd-nav-item" type="button">Awaiting Award <span>{buyerPostsClosed}</span></button>
+              </div>
+              <div className="dd-nav-group">
+                <div className="dd-nav-head">Work</div>
+                <button className="dd-nav-item" type="button">In Progress <span>{buyerActiveContracts.length}</span></button>
+                <button className="dd-nav-item" type="button">Completed <span>{buyerCompletedJobs}</span></button>
+                <button className="dd-nav-item" type="button">Disputes <span>{totalDisputes}</span></button>
+              </div>
+              <div className="dd-nav-group">
+                <div className="dd-nav-head">Account</div>
+                <button className="dd-nav-item" type="button">Payments</button>
+                <button className="dd-nav-item" type="button" onClick={() => navigate('/profile')}>Settings</button>
+              </div>
+            </>
+          )}
         </aside>
 
         <section className="dd-main">
-          <div className="dd-kpi-grid">
-            <article className="dd-kpi">
-              <div className="dd-kpi-label">This month</div>
-              <div className="dd-kpi-value green">GH¢ {thisMonthEarnings.toLocaleString()}</div>
-            </article>
-            <article className="dd-kpi">
-              <div className="dd-kpi-label">Active bids</div>
-              <div className="dd-kpi-value blue">{myActiveBids.length}</div>
-              <div className="dd-kpi-sub">Across open auctions</div>
-            </article>
-            <article className="dd-kpi">
-              <div className="dd-kpi-label">Avg. rating</div>
-              <div className="dd-kpi-value">★ {avgRating}</div>
-              <div className="dd-kpi-sub">From {totalReviews} reviews</div>
-            </article>
-            <article className="dd-kpi">
-              <div className="dd-kpi-label">Win rate</div>
-              <div className="dd-kpi-value">{winRate}%</div>
-              <div className="dd-kpi-sub">{acceptedBids.length} of {myBids.length} bids accepted</div>
-            </article>
-          </div>
-
-          <article className="dd-panel">
-            <header className="dd-panel-head">
-              <h3>Your active bids ({myActiveBids.length})</h3>
-              <button type="button" className="dd-link" onClick={() => navigate('/browse')}>View all →</button>
-            </header>
-            <div className="dd-list">
-              {myActiveBids.length === 0 && <div className="dd-empty">No active bids right now.</div>}
-              {myActiveBids.map(({ bid, job, rank }) => (
-                <div key={bid._id} className="dd-row">
-                  <div className="dd-rank">{rank}<span>Rank</span></div>
-                  <div className="dd-job">
-                    <div className="dd-job-cat">{job?.category || 'General'} · {job?.subcategory || 'Service'}</div>
-                    <div className="dd-job-title">{job?.title || 'Job'}</div>
-                    <div className="dd-job-meta">{job?.intake_details?.location || 'Accra'} · Closes in <strong>{formatClose(job?.deadline)}</strong> · {(job?.bids_count || 0)} bids total</div>
-                  </div>
-                  <div className="dd-amount">GH¢ {Number(bid.amount || 0).toLocaleString()}<small>Your bid · {statusLabel(bid.status)}</small></div>
-                  <div className="dd-actions">
-                    <button type="button" className="dd-btn" onClick={() => navigate(`/jobs/${job?._id || bid.job_id}`)}>View job</button>
-                    <button type="button" className="dd-btn" onClick={() => navigate(`/jobs/${job?._id || bid.job_id}`)}>Edit bid</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </article>
-
-          <article className="dd-panel">
-            <header className="dd-panel-head">
-              <h3>Job in progress ({inProgress.length})</h3>
-            </header>
-            <div className="dd-list">
-              {inProgress.length === 0 && <div className="dd-empty">No active work in progress.</div>}
-              {inProgress.map(({ bid, job }) => (
-                <div key={bid._id} className="dd-row in-progress">
-                  <div className="dd-job">
-                    <div className="dd-job-cat">{job?.category || 'Service'} · In progress</div>
-                    <div className="dd-job-title">{job?.title || 'Job'}</div>
-                    <div className="dd-job-meta">Accepted bid: <strong>GH¢ {Number(bid.amount || 0).toLocaleString()}</strong> · Client: {job?.owner_id?.name || 'Client'}</div>
-                    <div className="dd-progress"><span style={{ width: '58%' }} /> <em>In progress</em></div>
-                  </div>
-                  <div className="dd-actions">
-                    <button type="button" className="dd-btn" onClick={() => navigate(`/jobs/${job?._id || bid.job_id}`)}>Mark complete</button>
-                    <button type="button" className="dd-btn" onClick={() => navigate(`/jobs/${job?._id || bid.job_id}`)}>Message client</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </article>
-
-          <article className="dd-panel">
-            <header className="dd-panel-head">
-              <h3>Matching jobs for you ({matchingJobs.length})</h3>
-              <button type="button" className="dd-link" onClick={() => navigate('/browse')}>Browse all →</button>
-            </header>
-            <div className="dd-list">
-              {matchingJobs.length === 0 && <div className="dd-empty">No suggested jobs yet. Check Browse Requests.</div>}
-              {matchingJobs.map((job) => (
-                <div key={job._id} className="dd-row">
-                  <div className="dd-job">
-                    <div className="dd-match">{job.matchScore}% match</div>
-                    <div className="dd-job-title">{job.title}</div>
-                    <div className="dd-job-meta">GH¢ {Number(job.budget || 0).toLocaleString()} ceiling · {job.bids_count || 0} bids · Closes in {formatClose(job.deadline)}</div>
-                  </div>
-                  <div className="dd-actions">
-                    <button type="button" className="dd-btn" onClick={() => navigate(`/jobs/${job._id}`)}>Bid now →</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </article>
-
-          <article className="dd-panel">
-            <header className="dd-panel-head">
-              <h3>Earnings — last 6 months</h3>
-            </header>
-            <div className="dd-earnings-grid">
-              <div className="dd-earn-left">
-                <div className="dd-kpi-label">This month</div>
-                <div className="dd-earn-big">GH¢ {thisMonthEarnings.toLocaleString()}</div>
-                <div className="dd-mini-bars">
-                  <span />
-                  <span className="on" />
-                  <span />
-                  <span className="on" />
-                  <span />
-                  <span className="deep" />
-                </div>
+          {roleMode === 'seller' ? (
+            <>
+              <div className="dd-kpi-grid">
+                <article className="dd-kpi">
+                  <div className="dd-kpi-label">This month</div>
+                  <div className="dd-kpi-value green">GH¢ {thisMonthEarnings.toLocaleString()}</div>
+                </article>
+                <article className="dd-kpi">
+                  <div className="dd-kpi-label">Active bids</div>
+                  <div className="dd-kpi-value blue">{myActiveBids.length}</div>
+                  <div className="dd-kpi-sub">Across open auctions</div>
+                </article>
+                <article className="dd-kpi">
+                  <div className="dd-kpi-label">Avg. rating</div>
+                  <div className="dd-kpi-value">★ {avgRating}</div>
+                  <div className="dd-kpi-sub">From {totalReviews} reviews</div>
+                </article>
+                <article className="dd-kpi">
+                  <div className="dd-kpi-label">Win rate</div>
+                  <div className="dd-kpi-value">{winRate}%</div>
+                  <div className="dd-kpi-sub">{acceptedBids.length} of {myBids.length} bids accepted</div>
+                </article>
               </div>
-              <div className="dd-earn-right">
-                <div className="dd-kpi-label">In escrow (pending release)</div>
-                <div className="dd-earn-big">GH¢ {inEscrow.toLocaleString()}</div>
-                <div className="dd-earn-row"><span>All-time earned</span><strong>GH¢ {allTimeEarned.toLocaleString()}</strong></div>
-                <div className="dd-earn-row"><span>Platform fee (8%)</span><strong className="red">− GH¢ {platformFee.toLocaleString()}</strong></div>
-                <div className="dd-earn-row"><span>Net paid out</span><strong className="green">GH¢ {netPaidOut.toLocaleString()}</strong></div>
+
+              <article className="dd-panel">
+                <header className="dd-panel-head">
+                  <h3>Your active bids ({myActiveBids.length})</h3>
+                  <button type="button" className="dd-link" onClick={() => navigate('/browse')}>View all</button>
+                </header>
+                <div className="dd-list">
+                  {myActiveBids.length === 0 && <div className="dd-empty">No active bids right now.</div>}
+                  {myActiveBids.map(({ bid, job, rank }) => (
+                    <div key={bid._id} className="dd-row">
+                      <div className="dd-rank">{rank}<span>Rank</span></div>
+                      <div className="dd-job">
+                        <div className="dd-job-cat">{job?.category || 'General'} · {job?.subcategory || 'Service'}</div>
+                        <div className="dd-job-title">{job?.title || 'Job'}</div>
+                        <div className="dd-job-meta">{job?.intake_details?.location || 'Accra'} · Closes in <strong>{formatClose(job?.deadline)}</strong> · {(job?.bids_count || 0)} bids total</div>
+                      </div>
+                      <div className="dd-amount">GH¢ {Number(bid.amount || 0).toLocaleString()}<small>Your bid · {statusLabel(bid.status)}</small></div>
+                      <div className="dd-actions">
+                        <button type="button" className="dd-btn" onClick={() => navigate(`/jobs/${job?._id || bid.job_id}`)}>View job</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article className="dd-panel">
+                <header className="dd-panel-head">
+                  <h3>Job in progress ({inProgress.length})</h3>
+                </header>
+                <div className="dd-list">
+                  {inProgress.length === 0 && <div className="dd-empty">No active work in progress.</div>}
+                  {inProgress.map(({ bid, job }) => (
+                    <div key={bid._id} className="dd-row in-progress">
+                      <div className="dd-job">
+                        <div className="dd-job-cat">{job?.category || 'Service'} · In progress</div>
+                        <div className="dd-job-title">{job?.title || 'Job'}</div>
+                        <div className="dd-job-meta">Accepted bid: <strong>GH¢ {Number(bid.amount || 0).toLocaleString()}</strong></div>
+                        <div className="dd-progress"><span style={{ width: '58%' }} /> <em>In progress</em></div>
+                      </div>
+                      <div className="dd-actions">
+                        <button type="button" className="dd-btn" onClick={() => navigate(`/jobs/${job?._id || bid.job_id}`)}>View job</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article className="dd-panel">
+                <header className="dd-panel-head">
+                  <h3>Matching jobs for you ({matchingJobs.length})</h3>
+                  <button type="button" className="dd-link" onClick={() => navigate('/browse')}>Browse all</button>
+                </header>
+                <div className="dd-list">
+                  {matchingJobs.length === 0 && <div className="dd-empty">No suggested jobs yet. Check Browse Requests.</div>}
+                  {matchingJobs.map((job) => (
+                    <div key={job._id} className="dd-row">
+                      <div className="dd-job">
+                        <div className="dd-match">{job.matchScore}% match</div>
+                        <div className="dd-job-title">{job.title}</div>
+                        <div className="dd-job-meta">GH¢ {Number(job.budget || 0).toLocaleString()} ceiling · {job.bids_count || 0} bids · Closes in {formatClose(job.deadline)}</div>
+                      </div>
+                      <div className="dd-actions">
+                        <button type="button" className="dd-btn" onClick={() => navigate(`/jobs/${job._id}`)}>Bid now</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article className="dd-panel">
+                <header className="dd-panel-head">
+                  <h3>Earnings — last 6 months</h3>
+                </header>
+                <div className="dd-earnings-grid">
+                  <div className="dd-earn-left">
+                    <div className="dd-kpi-label">This month</div>
+                    <div className="dd-earn-big">GH¢ {thisMonthEarnings.toLocaleString()}</div>
+                    <div className="dd-mini-bars">
+                      <span />
+                      <span className="on" />
+                      <span />
+                      <span className="on" />
+                      <span />
+                      <span className="deep" />
+                    </div>
+                  </div>
+                  <div className="dd-earn-right">
+                    <div className="dd-kpi-label">In escrow (pending release)</div>
+                    <div className="dd-earn-big">GH¢ {inEscrow.toLocaleString()}</div>
+                    <div className="dd-earn-row"><span>All-time earned</span><strong>GH¢ {allTimeEarned.toLocaleString()}</strong></div>
+                    <div className="dd-earn-row"><span>Platform fee (8%)</span><strong className="red">− GH¢ {platformFee.toLocaleString()}</strong></div>
+                    <div className="dd-earn-row"><span>Net paid out</span><strong className="green">GH¢ {netPaidOut.toLocaleString()}</strong></div>
+                  </div>
+                </div>
+              </article>
+            </>
+          ) : (
+            <>
+              <div className="dd-kpi-grid">
+                <article className="dd-kpi">
+                  <div className="dd-kpi-label">Posted Jobs</div>
+                  <div className="dd-kpi-value blue">{myRequests.length}</div>
+                  <div className="dd-kpi-sub">Total projects</div>
+                </article>
+                <article className="dd-kpi">
+                  <div className="dd-kpi-label">Open Auctions</div>
+                  <div className="dd-kpi-value">{buyerPostsOpen}</div>
+                  <div className="dd-kpi-sub">Still accepting bids</div>
+                </article>
+                <article className="dd-kpi">
+                  <div className="dd-kpi-label">In Progress</div>
+                  <div className="dd-kpi-value green">{buyerActiveContracts.length}</div>
+                  <div className="dd-kpi-sub">Active contracts</div>
+                </article>
+                <article className="dd-kpi">
+                  <div className="dd-kpi-label">Total Spent</div>
+                  <div className="dd-kpi-value">GH¢ {totalSpent.toLocaleString()}</div>
+                  <div className="dd-kpi-sub">Completed work</div>
+                </article>
               </div>
-            </div>
-          </article>
+
+              <article className="dd-panel">
+                <header className="dd-panel-head">
+                  <h3>Open auctions ({buyerPostsOpen})</h3>
+                  <button type="button" className="dd-link" onClick={() => navigate('/post-job')}>Post new</button>
+                </header>
+                <div className="dd-list">
+                  {buyerPostsOpen === 0 && <div className="dd-empty">No open auctions right now.</div>}
+                  {buyerOpenJobs.map((job) => (
+                    <div key={job._id} className="dd-row">
+                      <div className="dd-job">
+                        <div className="dd-job-cat">{job.category || 'General'} · Open</div>
+                        <div className="dd-job-title">{job.title}</div>
+                        <div className="dd-job-meta">GH¢ {Number(job.budget || 0).toLocaleString()} budget · {job.bids_count || 0} bids · Closes in {formatClose(job.deadline)}</div>
+                      </div>
+                      <div className="dd-actions">
+                        <button type="button" className="dd-btn" onClick={() => navigate(`/jobs/${job._id}`)}>View</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article className="dd-panel">
+                <header className="dd-panel-head">
+                  <h3>Awaiting award ({buyerPostsClosed})</h3>
+                </header>
+                <div className="dd-list">
+                  {buyerPostsClosed === 0 && <div className="dd-empty">No closed jobs waiting for selection.</div>}
+                  {buyerAwaitingAwardJobs.map((job) => (
+                    <div key={job._id} className="dd-row">
+                      <div className="dd-job">
+                        <div className="dd-job-cat">{job.category || 'General'} · Closed</div>
+                        <div className="dd-job-title">{job.title}</div>
+                        <div className="dd-job-meta">GH¢ {Number(job.budget || 0).toLocaleString()} budget · {job.bids_count || 0} bids · Closed</div>
+                      </div>
+                      <div className="dd-actions">
+                        <button type="button" className="dd-btn" onClick={() => navigate(`/jobs/${job._id}`)}>Award</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article className="dd-panel">
+                <header className="dd-panel-head">
+                  <h3>In progress ({buyerActiveContracts.length})</h3>
+                </header>
+                <div className="dd-list">
+                  {buyerActiveContracts.length === 0 && <div className="dd-empty">No active contracts right now.</div>}
+                  {buyerActiveContracts.map((job) => {
+                    const winner = job.winning_bid_id || {}
+                    return (
+                      <div key={job._id} className="dd-row in-progress">
+                        <div className="dd-job">
+                          <div className="dd-job-cat">{job.category || 'Service'}</div>
+                          <div className="dd-job-title">{job.title}</div>
+                          <div className="dd-job-meta red">GH¢ {Number(job.escrow_amount || 0).toLocaleString()}</div>
+                          <div className="dd-progress"><span style={{ width: '58%' }} /> <em>{job.workflow_stage || 'In progress'}</em></div>
+                        </div>
+                        <div className="dd-actions">
+                          <button type="button" className="dd-btn" onClick={() => navigate(`/jobs/${job._id}`)}>View details</button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </article>
+
+              <article className="dd-panel">
+                <header className="dd-panel-head">
+                  <h3>Payments & Escrow</h3>
+                </header>
+                <div className="dd-earnings-grid">
+                  <div className="dd-earn-left">
+                    <div className="dd-kpi-label">Total Budget</div>
+                    <div className="dd-earn-big">GH¢ {myRequests.reduce((sum, j) => sum + Number(j.budget || 0), 0).toLocaleString()}</div>
+                    <div className="dd-mini-bars">
+                      <span />
+                      <span className="on" />
+                      <span />
+                      <span className="on" />
+                      <span />
+                      <span className="deep" />
+                    </div>
+                  </div>
+                  <div className="dd-earn-right">
+                    <div className="dd-kpi-label">In escrow (pending work)</div>
+                    <div className="dd-earn-big">GH¢ {totalBidsCost.toLocaleString()}</div>
+                    <div className="dd-earn-row"><span>Total spent (released)</span><strong className="green">GH¢ {totalSpent.toLocaleString()}</strong></div>
+                    <div className="dd-earn-row"><span>Completed jobs</span><strong>{buyerCompletedJobs}</strong></div>
+                    <div className="dd-earn-row"><span>Disputes</span><strong className="red">{totalDisputes}</strong></div>
+                  </div>
+                </div>
+              </article>
+            </>
+          )}
         </section>
       </div>
     </div>

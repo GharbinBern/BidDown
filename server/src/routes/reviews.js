@@ -48,13 +48,11 @@ router.post('/', authMiddleware, [
       return res.status(403).json({ error: 'Only job participants can review' });
     }
 
-    if (!targetRevieweeId) {
-      return res.status(400).json({ error: 'reviewee_id is required' });
-    }
-
-    const targetId = targetRevieweeId.toString();
     const expectedRevieweeId = reviewerId === buyerId ? sellerId : buyerId;
-    if (targetId !== expectedRevieweeId) {
+    const targetId = targetRevieweeId ? targetRevieweeId.toString() : expectedRevieweeId;
+
+    // If caller provides an explicit target, ensure it matches the opposite participant.
+    if (targetRevieweeId && targetId !== expectedRevieweeId) {
       return res.status(400).json({ error: 'You can only review the other participant in this job' });
     }
 
