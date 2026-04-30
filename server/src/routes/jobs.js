@@ -168,7 +168,7 @@ router.get('/', optionalAuth, [
   try {
     await autoCloseExpiredOpenJobs();
 
-    const { category, status, page = 1, limit = 20, search } = req.query;
+    const { category, status, page = 1, limit = 20, search, owner } = req.query;
 
     const resolvedStatus = status || 'open';
     const filter = resolvedStatus === 'all' ? {} : { status: resolvedStatus };
@@ -176,6 +176,7 @@ router.get('/', optionalAuth, [
       filter.deadline = { $gte: new Date() };
     }
     if (category) filter.category = category;
+    if (owner) filter.owner_id = owner;
     if (search) {
       filter.$or = [
         { title: { $regex: search, $options: 'i' } },

@@ -225,9 +225,10 @@ export default function DashboardPage() {
   const totalReviews = user?.reviews_count || 0
   const winRate = myBids.length ? Math.round((acceptedBids.length / myBids.length) * 100) : 0
 
+  const firstName = user?.name?.split(' ')[0] || 'there'
   const topMessage = roleMode === 'seller'
-    ? `Good morning, ${user?.name?.split(' ')[0] || 'there'} — you have ${myActiveBids.length} active bids and ${inProgress.length} job in progress.`
-    : `Good morning, ${user?.name?.split(' ')[0] || 'there'} — you have ${buyerPostsOpen} active requests, ${buyerPostsClosed} awaiting award, and ${buyerActiveContracts.length} ongoing work.`
+    ? `Welcome back, ${firstName}. You have ${myActiveBids.length} active bid${myActiveBids.length !== 1 ? 's' : ''} and ${inProgress.length} job${inProgress.length !== 1 ? 's' : ''} in progress.`
+    : `Welcome back, ${firstName}. You have ${buyerPostsOpen} open auction${buyerPostsOpen !== 1 ? 's' : ''}, ${buyerPostsClosed} awaiting award, and ${buyerActiveContracts.length} active contract${buyerActiveContracts.length !== 1 ? 's' : ''}.`
 
   if (loading) {
     return <div className="main" style={{ paddingTop: 20, color: 'var(--muted)' }}>Loading dashboard…</div>
@@ -247,15 +248,15 @@ export default function DashboardPage() {
             <>
               <div className="dd-nav-group">
                 <div className="dd-nav-head">Bidding</div>
-                <button className="dd-nav-item" type="button" onClick={() => navigate('/browse')}>Active Bids <span>{myActiveBids.length}</span></button>
-                <button className="dd-nav-item" type="button">Bid History</button>
-                <button className="dd-nav-item" type="button" onClick={() => navigate('/browse')}>Matching Jobs <span>{matchingJobs.length}</span></button>
+                <div className="dd-nav-item">Active Bids <span>{myActiveBids.length}</span></div>
+                <div className="dd-nav-item">Bid History</div>
+                <div className="dd-nav-item">Matching Jobs <span>{matchingJobs.length}</span></div>
               </div>
               <div className="dd-nav-group">
                 <div className="dd-nav-head">Work</div>
-                <button className="dd-nav-item" type="button">In Progress <span>{inProgress.length}</span></button>
-                <button className="dd-nav-item" type="button">Completed Jobs</button>
-                <button className="dd-nav-item" type="button">Disputes</button>
+                <div className="dd-nav-item">In Progress <span>{inProgress.length}</span></div>
+                <div className="dd-nav-item">Completed Jobs</div>
+                <div className="dd-nav-item">Disputes</div>
               </div>
               <div className="dd-nav-group">
                 <div className="dd-nav-head">Account</div>
@@ -319,7 +320,7 @@ export default function DashboardPage() {
                   <button type="button" className="dd-link" onClick={() => navigate('/browse')}>View all</button>
                 </header>
                 <div className="dd-list">
-                  {myActiveBids.length === 0 && <div className="dd-empty">No active bids right now.</div>}
+                  {myActiveBids.length === 0 && <div className="dd-empty">No active bids. Browse open jobs to find work matching your skills.</div>}
                   {myActiveBids.map(({ bid, job, rank }) => (
                     <div key={bid._id} className="dd-row">
                       <div className="dd-rank">{rank}<span>Rank</span></div>
@@ -342,7 +343,7 @@ export default function DashboardPage() {
                   <h3>Job in progress ({inProgress.length})</h3>
                 </header>
                 <div className="dd-list">
-                  {inProgress.length === 0 && <div className="dd-empty">No active work in progress.</div>}
+                  {inProgress.length === 0 && <div className="dd-empty">No work in progress. Win a bid and your active jobs will appear here.</div>}
                   {inProgress.map(({ bid, job }) => (
                     <div key={bid._id} className="dd-row in-progress">
                       <div className="dd-job">
@@ -365,7 +366,7 @@ export default function DashboardPage() {
                   <button type="button" className="dd-link" onClick={() => navigate('/browse')}>Browse all</button>
                 </header>
                 <div className="dd-list">
-                  {matchingJobs.length === 0 && <div className="dd-empty">No suggested jobs yet. Check Browse Requests.</div>}
+                  {matchingJobs.length === 0 && <div className="dd-empty">No job matches right now. Check Browse Requests for all open jobs.</div>}
                   {matchingJobs.map((job) => (
                     <div key={job._id} className="dd-row">
                       <div className="dd-job">
@@ -439,7 +440,7 @@ export default function DashboardPage() {
                   <button type="button" className="dd-link" onClick={() => navigate('/post-job')}>Post new</button>
                 </header>
                 <div className="dd-list">
-                  {buyerPostsOpen === 0 && <div className="dd-empty">No open auctions right now.</div>}
+                  {buyerPostsOpen === 0 && <div className="dd-empty">No open auctions. Post a job and providers will start bidding within minutes.</div>}
                   {buyerOpenJobs.map((job) => (
                     <div key={job._id} className="dd-row">
                       <div className="dd-job">
@@ -460,7 +461,7 @@ export default function DashboardPage() {
                   <h3>Awaiting award ({buyerPostsClosed})</h3>
                 </header>
                 <div className="dd-list">
-                  {buyerPostsClosed === 0 && <div className="dd-empty">No closed jobs waiting for selection.</div>}
+                  {buyerPostsClosed === 0 && <div className="dd-empty">No jobs awaiting award. Once an auction closes, you will pick a winner here.</div>}
                   {buyerAwaitingAwardJobs.map((job) => (
                     <div key={job._id} className="dd-row">
                       <div className="dd-job">
@@ -481,7 +482,7 @@ export default function DashboardPage() {
                   <h3>In progress ({buyerActiveContracts.length})</h3>
                 </header>
                 <div className="dd-list">
-                  {buyerActiveContracts.length === 0 && <div className="dd-empty">No active contracts right now.</div>}
+                  {buyerActiveContracts.length === 0 && <div className="dd-empty">No active contracts. Award a job to get work started.</div>}
                   {buyerActiveContracts.map((job) => {
                     const winner = job.winning_bid_id || {}
                     return (

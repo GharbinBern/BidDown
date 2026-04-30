@@ -23,7 +23,10 @@ const BUYER_NAMES = [
   'Maame Serwaa Asante', 'Fiifi Benson', 'Ekow Mensah', 'Akua Asante',
   'Obeng Darko', 'Serwaa Boateng', 'Nana Ama Acheampong', 'Yaa Amponsah',
   'Kwabena Osei', 'Abigail Frempong', 'Baffour Quainoo', 'Mabel Antwi',
-  'Raymond Darko',
+  'Raymond Darko', 'Christiana Boadu', 'Frank Agyei', 'Eunice Tetteh',
+  'Richard Asante', 'Portia Ofori', 'Charles Baffoe', 'Naomi Asiedu',
+  'Stephen Owusu', 'Lydia Mensah', 'Emmanuel Kusi', 'Harriet Asante',
+  'Isaac Boateng', 'Doris Frimpong', 'Clement Osei', 'Agnes Dankwa',
 ];
 
 const SELLER_NAMES = [
@@ -33,7 +36,20 @@ const SELLER_NAMES = [
   'Prince Ofosu', 'Vivian Opoku', 'Aaron Kwarteng', 'Elsie Boampong',
   'Kofi Sarpong', 'Gifty Owusu', 'Bernard Asante', 'Felicia Nyarko',
   'Desmond Boateng', 'Patience Tawiah', 'Reginald Acheampong', 'Diana Mensah',
-  'Maxwell Asiedu',
+  'Maxwell Asiedu', 'Nii Okai', 'Serwa Quaye', 'Eric Amponsah',
+  'Comfort Asante', 'Daniel Tetteh', 'Grace Ofori', 'Francis Asiedu',
+  'Helen Mensah', 'Philip Boateng', 'Cynthia Frimpong', 'Edward Osei',
+  'Juliet Darko', 'Samuel Twumasi', 'Ruth Bonsu', 'Anthony Agyemang',
+  'Florence Baffour', 'Michael Opoku', 'Victoria Kwarteng', 'Albert Boampong',
+  'Martha Sarpong', 'George Owusu', 'Josephine Asante', 'David Nyarko',
+  'Abena Tawiah', 'Thomas Acheampong', 'Rebecca Mensah', 'Jonathan Asiedu',
+  'Felicia Boateng', 'Lawrence Frimpong', 'Theresa Osei', 'Patrick Darko',
+  'Eunice Twumasi', 'Alexander Bonsu', 'Beatrice Agyemang', 'Charles Tetteh',
+  'Naomi Ofori', 'Richard Asiedu', 'Christiana Mensah', 'Frank Boateng',
+  'Portia Frimpong', 'Stephen Osei', 'Lydia Darko', 'Emmanuel Twumasi',
+  'Harriet Bonsu', 'Isaac Agyemang', 'Doris Tetteh', 'Clement Ofori',
+  'Agnes Asiedu', 'Kofi Mensah', 'Adwoa Boateng', 'Kwesi Frimpong',
+  'Ama Osei', 'Yaw Darko', 'Efua Twumasi', 'Kwame Bonsu',
 ];
 
 const GHANA_LOCATIONS = [
@@ -752,33 +768,92 @@ const REVIEW_COMMENTS = {
   },
 };
 
-const SELLER_BIOS = [
-  'Certified plumber and building technician with over eight years servicing residential and commercial properties across Accra.',
-  'Patient and results-focused academic tutor with experience preparing students for BECE, WASSCE, and university entrance exams.',
-  'Professional photographer specialising in events, corporate, and product photography with a studio in East Legon, Accra.',
-  'Experienced residential and commercial cleaning team leader with trained staff and professional-grade equipment across Accra.',
-  'Reliable logistics and delivery service operator with covered vehicle and a strong track record across Greater Accra and beyond.',
-  'Brand identity and print designer producing premium visual assets for SMEs and event organisers across Ghana.',
-  'Traditional and contemporary Ghanaian caterer with experience at weddings, corporate events, and daily office catering.',
-  'IT support technician offering network setup, device repair, and custom software configuration for Accra-based businesses.',
-  'Skilled handyman and home maintenance specialist covering carpentry, electrical, and general household repairs in Tema and Accra.',
-  'Experienced WASSCE and BECE tutor with a structured teaching method and consistently strong student results over six years.',
-  'Wedding and events photographer based in Kumasi serving clients across the Ashanti and Greater Accra regions.',
-  'Commercial and residential deep cleaning specialist with fully equipped team and flexible scheduling for Accra and Tema.',
-  'Inter-city and intra-city courier operator with own vehicle fleet and established same-day delivery routes across Ghana.',
-  'Graphic designer and print production manager delivering consistent brand materials for businesses and churches nationwide.',
-  'Professional Ghanaian caterer and event food coordinator with experience across all scales from intimate to large outdoor funerals.',
-  'Full-stack web developer and IT consultant offering website builds, e-commerce setup, and business software configuration.',
-  'Licensed electrician and building services engineer with over a decade of residential and light commercial installations.',
-  'Qualified maths and science tutor with six years teaching SHS and JHS learners in Kumasi and surrounding areas.',
-  'Portrait and documentary photographer offering fast turnaround and consistent professional editing for every project.',
-  'Commercial cleaning contractor specialising in post-construction and industrial kitchen cleans across Greater Accra.',
-  'Furniture removal and secure storage specialist with a covered truck fleet serving Greater Accra and Kumasi routes.',
-  'Freelance graphic designer with a strong track record in brand identity, print collateral, and social media content.',
-  'Experienced Ghanaian event caterer with a trained team and certified kitchen facility in Accra, available seven days a week.',
-  'Senior IT consultant and Shopify developer with a focus on practical solutions for Ghanaian SMEs and retail businesses.',
-  'Borehole and water system technician with specialist equipment for repairs, maintenance, and new installations.',
+const BUYER_BIOS = [
+  'Small business owner in Accra who regularly hires skilled tradespeople and service providers for home and office needs.',
+  'Property manager overseeing several residential units in East Legon and Tema. Frequently needs reliable contractors.',
+  'Working professional and homeowner in Kumasi who values punctuality and quality workmanship above all else.',
+  'Parent of three school-age children looking for dependable tutors, cleaners, and home maintenance providers in Adenta.',
+  'Events coordinator who regularly sources photographers, caterers, and logistics partners for corporate and social functions.',
+  'Restaurant owner in Osu sourcing design, IT, and maintenance services to keep the business running smoothly.',
+  'Busy professional in Airport Residential who prefers hiring vetted local providers for all home service needs.',
+  'Landlord with properties across Accra and Tema, regularly engaging plumbers, electricians, and cleaning teams.',
+  'Entrepreneur running a growing e-commerce brand who frequently needs designers, IT support, and delivery services.',
+  'University lecturer in Kumasi hiring tutors, photographers, and caterers for academic and personal events.',
+  'Finance professional in Labone who values thorough, well-communicated service delivery and prompt follow-through.',
+  'Healthcare administrator hiring IT consultants and maintenance professionals for a busy clinic in Cantonments.',
+  'Retail shop owner in Dansoman who regularly sources delivery, design, and IT services for the business.',
+  'Marketing manager who hires photographers, designers, and caterers for product launches and brand events in Accra.',
+  'Young professional and first-time homeowner in Spintex Road learning to navigate home maintenance with quality providers.',
+  'School administrator who sources tutors, catering, photography, and IT support for a private school in Tema.',
+  'NGO programme coordinator regularly hiring logistics, catering, and event services for community programmes.',
+  'Real estate agent in Accra who frequently commissions photography, cleaning, and maintenance ahead of property viewings.',
+  'Retired civil servant in Ashaiman who values honest, skilled professionals for home repairs and personal services.',
+  'Corporate HR manager sourcing training, catering, photography, and IT services for a mid-size company in Accra.',
+  'Import business owner in Takoradi who needs reliable delivery, IT, and design services on a recurring basis.',
+  'Homeowner in Madina carrying out a full renovation and sourcing multiple skilled tradespeople through BidDown.',
+  'Chef and food entrepreneur in Cape Coast looking for packaging design, delivery, and IT support for a growing brand.',
+  'Teacher and parent in Achimota who hires tutors, cleaners, and home repair professionals through the platform.',
+  'Young couple in Bantama, Kumasi, regularly using BidDown to find trusted local service providers for their new home.',
 ];
+
+const CATEGORY_BIOS = {
+  'Home Repairs': [
+    'Certified plumber and building technician with over eight years servicing residential and commercial properties across Accra.',
+    'Skilled handyman and home maintenance specialist covering carpentry, electrical, and general household repairs in Tema and Accra.',
+    'Licensed electrician and building services engineer with over a decade of residential and light commercial installations.',
+    'Borehole and water system technician with specialist equipment for repairs, maintenance, and new installations.',
+    'Experienced building contractor handling tiling, plastering, roofing, and general renovation work across Greater Accra.',
+  ],
+  Tutoring: [
+    'Patient and results-focused academic tutor with experience preparing students for BECE, WASSCE, and university entrance exams.',
+    'Experienced WASSCE and BECE tutor with a structured teaching method and consistently strong student results over six years.',
+    'Qualified maths and science tutor with six years teaching SHS and JHS learners in Kumasi and surrounding areas.',
+    'Professional IELTS and English language coach with a strong track record helping students achieve their target band scores.',
+    'University-qualified educator offering after-school support in core and elective subjects for primary through SHS learners.',
+  ],
+  Photography: [
+    'Professional photographer specialising in events, corporate, and product photography with a studio in East Legon, Accra.',
+    'Wedding and events photographer based in Kumasi serving clients across the Ashanti and Greater Accra regions.',
+    'Portrait and documentary photographer offering fast turnaround and consistent professional editing for every project.',
+    'Commercial photographer specialising in food, product, and real estate imagery for brands across Ghana.',
+    'Experienced event and conference photographer delivering same-day social media previews and full edited galleries.',
+  ],
+  Cleaning: [
+    'Experienced residential and commercial cleaning team leader with trained staff and professional-grade equipment across Accra.',
+    'Commercial and residential deep cleaning specialist with fully equipped team and flexible scheduling for Accra and Tema.',
+    'Commercial cleaning contractor specialising in post-construction and industrial kitchen cleans across Greater Accra.',
+    'Professional cleaning service operator delivering thorough residential, office, and post-event cleans throughout Ghana.',
+    'Reliable deep cleaning specialist with eco-certified products and a trained team available six days a week.',
+  ],
+  Delivery: [
+    'Reliable logistics and delivery service operator with covered vehicle and a strong track record across Greater Accra and beyond.',
+    'Inter-city and intra-city courier operator with own vehicle fleet and established same-day delivery routes across Ghana.',
+    'Furniture removal and secure storage specialist with a covered truck fleet serving Greater Accra and Kumasi routes.',
+    'Same-day parcel and cargo delivery operator with a reliable team and live tracking updates on every run.',
+    'Experienced logistics coordinator handling household moves, office relocations, and event equipment delivery across Ghana.',
+  ],
+  'Design & Print': [
+    'Brand identity and print designer producing premium visual assets for SMEs and event organisers across Ghana.',
+    'Graphic designer and print production manager delivering consistent brand materials for businesses and churches nationwide.',
+    'Freelance graphic designer with a strong track record in brand identity, print collateral, and social media content.',
+    'Creative designer offering logo design, event flyers, menus, and full brand identity packages for Ghanaian businesses.',
+    'Print and digital design specialist producing high-quality marketing materials with fast turnaround times.',
+  ],
+  Catering: [
+    'Traditional and contemporary Ghanaian caterer with experience at weddings, corporate events, and daily office catering.',
+    'Professional Ghanaian caterer and event food coordinator with experience across all scales from intimate to large outdoor funerals.',
+    'Experienced Ghanaian event caterer with a trained team and certified kitchen facility in Accra, available seven days a week.',
+    'Corporate and social event caterer delivering freshly prepared Ghanaian and continental menus across the Greater Accra region.',
+    'Dedicated catering professional with a fully equipped team specialising in naming ceremonies, funerals, and weddings.',
+  ],
+  'IT & Tech Support': [
+    'IT support technician offering network setup, device repair, and custom software configuration for Accra-based businesses.',
+    'Full-stack web developer and IT consultant offering website builds, e-commerce setup, and business software configuration.',
+    'Senior IT consultant and Shopify developer with a focus on practical solutions for Ghanaian SMEs and retail businesses.',
+    'Certified network and systems engineer providing reliable IT infrastructure and ongoing support for businesses in Accra.',
+    'Tech consultant specialising in QuickBooks setup, CCTV installation, and custom software solutions for small businesses.',
+  ],
+};
 
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -879,13 +954,17 @@ function sampleBidProposal(category) {
   };
 }
 
-// Ratings range 3 to 5 (maps to 3.5 to 5 average when weighted correctly)
+// Realistic rating distribution: mostly 4-5, occasional 3, rare 2
 function randomRatingInt() {
   const roll = Math.random();
-  if (roll < 0.08) return 3;
-  if (roll < 0.30) return 4;
+  if (roll < 0.03) return 2;
+  if (roll < 0.15) return 3;
+  if (roll < 0.45) return 4;
   return 5;
 }
+
+// Comment must match the rating: rating 2-3 uses negative pool, 4-5 uses positive
+function ratingIsPositive(rating) { return rating >= 4; }
 
 function randomComment(category, direction, isPositive) {
   const pool = REVIEW_COMMENTS[category];
@@ -902,6 +981,7 @@ async function createUsers() {
   const buyers = [];
   const sellers = [];
   const providerProfiles = [];
+  const sellerCategoryMap = new Map();
 
   for (let i = 0; i < BUYER_NAMES.length; i += 1) {
     const buyer = new User({
@@ -910,13 +990,14 @@ async function createUsers() {
       name: BUYER_NAMES[i],
       roles: ['buyer'],
       verified: true,
+      seller_profile: { bio: BUYER_BIOS[i % BUYER_BIOS.length] },
     });
     await buyer.save();
     buyers.push(buyer);
   }
 
   for (let i = 0; i < SELLER_NAMES.length; i += 1) {
-    const categoryPool = shuffle(CATEGORIES).slice(0, randomInt(1, 3));
+    const categoryPool = [CATEGORIES[i % CATEGORIES.length]];
 
     const seededSkills = {
       'Home Repairs': ['Polytank repair and installation', 'Float valve replacement', 'Pipe fitting', 'Tiling', 'AC servicing', 'Burglar bar fabrication'],
@@ -939,7 +1020,7 @@ async function createUsers() {
       roles: ['seller'],
       verified: true,
       seller_profile: {
-        bio: SELLER_BIOS[i],
+        bio: randomFrom(CATEGORY_BIOS[categoryPool[0]] || CATEGORY_BIOS['Home Repairs']),
         hourly_rate: randomInt(40, 150),
         portfolio_url: `https://portfolio.brafom.gh/seller${i + 1}`,
         skills,
@@ -948,6 +1029,7 @@ async function createUsers() {
 
     await seller.save();
     sellers.push(seller);
+    sellerCategoryMap.set(String(seller._id), categoryPool);
 
     providerProfiles.push({
       user_id: seller._id,
@@ -983,29 +1065,27 @@ async function createUsers() {
 
   if (providerProfiles.length) await ProviderProfile.insertMany(providerProfiles);
 
-  return { buyers, sellers };
+  return { buyers, sellers, sellerCategoryMap };
 }
 
-// 100 jobs with deadline groups close to 33/33/34 for 7/14/30 days
+// 80 jobs — exactly 10 per category
 function createJobDocs(buyers) {
   const now = Date.now();
   const jobs = [];
 
-  const totalJobs = 100;
+  const JOBS_PER_CATEGORY = 10;
+  const totalJobs = CATEGORIES.length * JOBS_PER_CATEGORY;
   const deadlineBands = [
-    ...Array(33).fill(7),
-    ...Array(33).fill(14),
-    ...Array(34).fill(30),
+    ...Array(Math.ceil(totalJobs / 3)).fill(7),
+    ...Array(Math.ceil(totalJobs / 3)).fill(14),
+    ...Array(Math.ceil(totalJobs / 3)).fill(30),
   ];
   const shuffledBands = shuffle(deadlineBands);
 
-  // Jobs per category: 4 categories get 13, 4 categories get 12 = 100
-  const categoryCounts = { 0: 13, 1: 13, 2: 13, 3: 13, 4: 12, 5: 12, 6: 12, 7: 12 };
-
   let bandIndex = 0;
-  CATEGORIES.forEach((category, catIdx) => {
+  CATEGORIES.forEach((category) => {
     const templates = CATEGORY_TEMPLATES[category] || [];
-    const count = categoryCounts[catIdx];
+    const count = JOBS_PER_CATEGORY;
 
     for (let i = 0; i < count; i += 1) {
       if (jobs.length >= totalJobs) break;
@@ -1041,20 +1121,22 @@ function createJobDocs(buyers) {
   return jobs;
 }
 
-async function createBidsAndFinalizeJobs(jobs, sellers) {
+async function createBidsAndFinalizeJobs(jobs, sellers, sellerCategoryMap) {
   const bidsToInsert = [];
   const jobBulkOps = [];
   const bidBulkOps = [];
   const reviewsToInsert = [];
 
   for (const job of jobs) {
-    // Target average 7 bids per job
-    const sellerCountForJob = randomInt(5, Math.min(9, sellers.length));
-    const chosenSellers = pickUnique(sellers, sellerCountForJob);
+    const eligible = sellers.filter((s) => (sellerCategoryMap.get(String(s._id)) || []).includes(job.category));
+    const pool = eligible.length >= 5 ? eligible : sellers;
+    const sellerCountForJob = randomInt(6, Math.min(9, pool.length));
+    const chosenSellers = pickUnique(pool, sellerCountForJob);
 
     for (const seller of chosenSellers) {
-      const maxAllowed = Math.max(100, Number(job.budget) - randomInt(30, 250));
-      const amount = randomInt(80, maxAllowed);
+      // Bids land between 72 and 93% of the budget ceiling: competitive but realistic
+      const pct = 0.72 + Math.random() * 0.21;
+      const amount = Math.max(80, Math.round(Number(job.budget) * pct));
 
       bidsToInsert.push({
         job_id: job._id,
@@ -1092,11 +1174,11 @@ async function createBidsAndFinalizeJobs(jobs, sellers) {
     const jobBids = bidsByJobId.get(key) || [];
     if (jobBids.length === 0) continue;
 
-    const shouldClose = Math.random() < 0.65;
+    const shouldClose = Math.random() < 0.80;
     if (!shouldClose) continue;
 
     const winningBid = [...jobBids].sort((a, b) => a.amount - b.amount)[0];
-    const completed = Math.random() < 0.45;
+    const completed = Math.random() < 0.65;
     const newStatus = completed ? 'completed' : 'closed';
 
     const completionDate = new Date(Date.now() - randomInt(1, 10) * 24 * 60 * 60 * 1000);
@@ -1158,8 +1240,8 @@ async function createBidsAndFinalizeJobs(jobs, sellers) {
     if (completed) {
       const buyerRating = randomRatingInt();
       const sellerRating = randomRatingInt();
-      const isPosBuyer = buyerRating >= 4;
-      const isPosSeller = sellerRating >= 4;
+      const isPosBuyer = ratingIsPositive(buyerRating);
+      const isPosSeller = ratingIsPositive(sellerRating);
 
       reviewsToInsert.push({
         job_id: job._id,
@@ -1220,6 +1302,84 @@ async function updateUserRatingsAndStats() {
   }
 }
 
+async function topUpReviews(sellers, buyers, sellerCategoryMap) {
+  const MIN = 3;
+  const extra = [];
+  const used = new Set();
+  const existing = await Review.find({}, { job_id: 1, reviewer_id: 1 }).lean();
+  existing.forEach((r) => used.add(`${r.job_id}:${r.reviewer_id}`));
+
+  const completedJobs = await Job.find({ status: 'completed' }).lean();
+
+  function tryAdd(review) {
+    const key = `${review.job_id}:${review.reviewer_id}`;
+    if (used.has(key)) return false;
+    used.add(key);
+    extra.push(review);
+    return true;
+  }
+
+  // For each seller: iterate category jobs x shuffled buyers until enough unique pairs found
+  for (const seller of sellers) {
+    const count = await Review.countDocuments({ reviewee_id: seller._id });
+    if (count >= MIN) continue;
+    const needed = MIN - count;
+    const sellerCats = sellerCategoryMap.get(String(seller._id)) || [];
+    const catJobs = shuffle(completedJobs.filter((j) => sellerCats.includes(j.category)));
+    const shuffledBuyers = shuffle([...buyers]);
+    let added = 0;
+    outer: for (const job of catJobs) {
+      for (const buyer of shuffledBuyers) {
+        if (added >= needed) break outer;
+        const rating = randomRatingInt();
+        const ok = tryAdd({
+          job_id: job._id, buyer_id: buyer._id, seller_id: seller._id,
+          reviewer_id: buyer._id, reviewee_id: seller._id, rating,
+          quality_rating: Math.min(5, Math.max(3, rating + randomInt(-1, 1))),
+          communication_rating: Math.min(5, Math.max(3, rating + randomInt(-1, 1))),
+          timeliness_rating: Math.min(5, Math.max(3, rating)),
+          comment: randomComment(job.category, 'buyer_to_seller', ratingIsPositive(rating)),
+          createdAt: new Date(Date.now() - randomInt(2, 45) * 24 * 60 * 60 * 1000),
+        });
+        if (ok) added++;
+      }
+    }
+  }
+
+  // For each buyer: iterate completed jobs x shuffled sellers until enough unique pairs found
+  for (const buyer of buyers) {
+    const count = await Review.countDocuments({ reviewee_id: buyer._id });
+    if (count >= MIN) continue;
+    const needed = MIN - count;
+    const shuffledJobs = shuffle([...completedJobs]);
+    const shuffledSellers = shuffle([...sellers]);
+    let added = 0;
+    outer: for (const job of shuffledJobs) {
+      for (const seller of shuffledSellers) {
+        if (added >= needed) break outer;
+        const sellerCats = sellerCategoryMap.get(String(seller._id)) || [];
+        if (!sellerCats.includes(job.category)) continue;
+        const rating = randomRatingInt();
+        const ok = tryAdd({
+          job_id: job._id, buyer_id: buyer._id, seller_id: seller._id,
+          reviewer_id: seller._id, reviewee_id: buyer._id, rating,
+          quality_rating: Math.min(5, Math.max(3, rating + randomInt(-1, 1))),
+          communication_rating: Math.min(5, Math.max(3, rating + randomInt(-1, 1))),
+          timeliness_rating: Math.min(5, Math.max(3, rating)),
+          comment: randomComment(job.category, 'seller_to_buyer', ratingIsPositive(rating)),
+          createdAt: new Date(Date.now() - randomInt(2, 45) * 24 * 60 * 60 * 1000),
+        });
+        if (ok) added++;
+      }
+    }
+  }
+
+  if (extra.length) {
+    await Review.insertMany(extra);
+    console.log(`Top-up: inserted ${extra.length} extra reviews`);
+  }
+}
+
 async function seed() {
   const uri = process.env.MONGODB_URI;
   if (!uri) throw new Error('Missing MONGODB_URI in server/.env');
@@ -1234,14 +1394,15 @@ async function seed() {
   await User.deleteMany({});
   console.log('Cleared existing data');
 
-  const { buyers, sellers } = await createUsers();
+  const { buyers, sellers, sellerCategoryMap } = await createUsers();
   console.log(`Created ${buyers.length} buyers and ${sellers.length} sellers`);
 
   const jobDocs = createJobDocs(buyers);
   const jobs = await Job.insertMany(jobDocs);
   console.log(`Inserted ${jobs.length} jobs`);
 
-  await createBidsAndFinalizeJobs(jobs, sellers);
+  await createBidsAndFinalizeJobs(jobs, sellers, sellerCategoryMap);
+  await topUpReviews(sellers, buyers, sellerCategoryMap);
   await updateUserRatingsAndStats();
 
   const openJobs = await Job.countDocuments({ status: 'open' });

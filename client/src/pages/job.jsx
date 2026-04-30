@@ -259,14 +259,13 @@ function BiddingView({ job, bids, myBid, isAuth, onBidSubmit, onAwardBid, curren
   const lowestAmt  = sortedBids[0] ? Number(sortedBids[0].amount) : null
 
   const [amount, setAmount]         = useState('')
-  const [availability, setAvail]    = useState('')
   const [note, setNote]             = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [awardingBidId, setAwardingBidId] = useState(null)
   const [selectedBidId, setSelectedBidId] = useState(null)
 
   const parsedAmt   = Number(amount)
-  const minRequired = lowestAmt !== null ? lowestAmt - 1 : Number(job.budget)
+  const minRequired = Number(job.budget)
   const amountValid = amount !== '' && parsedAmt > 0 && parsedAmt <= minRequired
 
   const handleSubmit = async (e) => {
@@ -276,26 +275,21 @@ function BiddingView({ job, bids, myBid, isAuth, onBidSubmit, onAwardBid, curren
     if (!amountValid) { toast.error(`Bid must be GH¢ ${minRequired.toLocaleString()} or less`); return }
     setSubmitting(true)
     try {
-      const availabilityText = availability.trim()
       const noteText = note.trim()
-      const combinedNote = [
-        noteText,
-        availabilityText ? `Availability: ${availabilityText}` : '',
-      ].filter(Boolean).join(' | ')
 
       await onBidSubmit({
         job_id: job._id,
         amount: parsedAmt,
-        note: combinedNote,
+        note: noteText,
         proposal: {
           timeline_days: 1,
-          supervision_plan: availabilityText || 'Availability to be finalized with buyer before kickoff.',
+          supervision_plan: 'To be finalized with buyer before kickoff.',
           milestone_plan: noteText || 'Single milestone delivery and final handoff.',
           category_detail: noteText || `${job.category || 'Service'} delivery based on posted requirements.`,
         },
       })
       toast.success('Bid placed successfully!')
-      setAmount(''); setAvail(''); setNote('')
+      setAmount(''); setNote('')
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to place bid')
     } finally {
@@ -331,7 +325,7 @@ function BiddingView({ job, bids, myBid, isAuth, onBidSubmit, onAwardBid, curren
   const jobClosed = job.status !== 'open' && !job.winning_bid_id
   const showAwardSection = isOwner && jobClosed && sortedBids.length > 0
   const visibleBids = sortedBids.slice(0, isAuth ? sortedBids.length : Math.min(5, sortedBids.length))
-  const hasHiddenBids = totalBidCount > 0 && sortedBids.length === 0
+  const hasHiddenBids = totalBidCount > sortedBids.length
   const hasPlacedBid = !!myBid
 
   const toggleAwardSelection = (bidId) => {
@@ -379,10 +373,15 @@ function BiddingView({ job, bids, myBid, isAuth, onBidSubmit, onAwardBid, curren
               </div>
               <div className="jd-stat-cell">
                 <div className="jd-stat-label">LOWEST BID SO FAR</div>
-                {lowestAmt !== null ? (
+                {lowestAmt !== null && !hasHiddenBids ? (
                   <>
                     <div className="jd-stat-val green">GH¢ {lowestAmt.toLocaleString()}</div>
                     <div className="jd-stat-sub">Current winning bid</div>
+                  </>
+                ) : hasHiddenBids ? (
+                  <>
+                    <div className="jd-stat-val muted">Sealed</div>
+                    <div className="jd-stat-sub">Hidden until award</div>
                   </>
                 ) : (
                   <>
@@ -394,7 +393,7 @@ function BiddingView({ job, bids, myBid, isAuth, onBidSubmit, onAwardBid, curren
               <div className="jd-stat-cell">
                 <div className="jd-stat-label">TOTAL BIDS</div>
                 <div className="jd-stat-val">{totalBidCount}</div>
-                <div className="jd-stat-sub">From {totalBidCount} providers</div>
+                <div className="jd-stat-sub">{totalBidCount > 0 ? `From ${totalBidCount} provider${totalBidCount !== 1 ? 's' : ''}` : 'No bids yet'}</div>
               </div>
               <div className="jd-stat-cell no-border">
                 <div className="jd-stat-label">CLOSES IN</div>
@@ -420,7 +419,7 @@ function BiddingView({ job, bids, myBid, isAuth, onBidSubmit, onAwardBid, curren
           )}
 
           <div className="jd-section-card">
-            <div className="jd-section-title">Live bid ladder - {totalBidCount} bids</div>
+            <div className="jd-section-title">Proposals submitted — {totalBidCount}</div>
             {showAwardSection && (
               <div className="jd-award-inline-note">
                 Select one bidder below, then award. Click again to unselect.
@@ -434,9 +433,9 @@ function BiddingView({ job, bids, myBid, isAuth, onBidSubmit, onAwardBid, curren
               <div className="jd-ladder-empty">
                 {hasHiddenBids
                   ? (isOwner
-                    ? 'Bids exist, but they could not be loaded right now. Please refresh.'
-                    : 'Bids have been submitted, but you can only view your own bid until award.')
-                  : 'No bids yet - be the first!'}
+                    ? 'Proposals exist but could not be loaded right now. Please refresh.'
+                    : 'Proposals are sealed until the client makes their selection.')
+                  : 'No proposals yet. Be the first to submit.'}
               </div>
             ) : (
               <div className="jd-ladder">
@@ -530,21 +529,19 @@ function BiddingView({ job, bids, myBid, isAuth, onBidSubmit, onAwardBid, curren
         {/* ── right sidebar ─── */}
         <aside className="jd-sidebar">
           <div className="jd-bid-card">
-            <div className="jd-bid-card-title">{isOwner ? 'Your posted job' : 'Place your bid'}</div>
+            <div className="jd-bid-card-title">
+              {isOwner ? 'Your posted job' : biddingLive ? 'Place your bid' : 'Auction closed'}
+            </div>
             <p className="jd-bid-subtext">
               {isOwner
                 ? 'You posted this request, so bidding is disabled for your account.'
                 : hasPlacedBid
                 ? 'You already submitted a bid for this job. You cannot submit another bid.'
-                : (lowestAmt !== null ? 'You must beat the current lowest bid to rank #1' : 'Be the first to bid on this job')}
+                : totalBidCount > 0
+                ? `${totalBidCount} proposal${totalBidCount !== 1 ? 's' : ''} submitted. Add yours before the deadline.`
+                : 'Be the first to submit a proposal for this job.'}
             </p>
 
-            {!isOwner && !hasPlacedBid && lowestAmt !== null && (
-              <div className="jd-bid-lowest-box">
-                Current lowest: <strong>GH¢ {lowestAmt.toLocaleString()}</strong> - your bid must be{' '}
-                <strong>GH¢ {(lowestAmt - 1).toLocaleString()}</strong> or less to take the lead.
-              </div>
-            )}
 
             {!isOwner && hasPlacedBid && (
               <div className="jd-bid-lowest-box">
@@ -563,26 +560,13 @@ function BiddingView({ job, bids, myBid, isAuth, onBidSubmit, onAwardBid, curren
                   className="jd-amount-input"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  placeholder={lowestAmt !== null ? String(lowestAmt - 1) : String(job.budget)}
+                  placeholder={String(job.budget)}
                   min={1}
-                  max={lowestAmt !== null ? lowestAmt - 1 : job.budget}
+                  max={job.budget}
                 />
-                {lowestAmt !== null && (
-                  <div className="jd-amount-hint">
-                    Must be below GH¢ {lowestAmt.toLocaleString()} to lead · GH¢ 1 minimum
-                  </div>
-                )}
-              </div>
-
-              <div className="jd-form-group">
-                <label className="jd-form-label">Availability</label>
-                <input
-                  type="text"
-                  className="jd-form-input"
-                  value={availability}
-                  onChange={(e) => setAvail(e.target.value)}
-                  placeholder="e.g. This Saturday 8am–12pm, or any weekday"
-                />
+                <div className="jd-amount-hint">
+                  Must be at or below the GH¢ {Number(job.budget).toLocaleString()} budget ceiling
+                </div>
               </div>
 
               <div className="jd-form-group">
@@ -666,12 +650,12 @@ function BiddingView({ job, bids, myBid, isAuth, onBidSubmit, onAwardBid, curren
           <div className="jd-how-card">
             <div className="jd-how-title">How selection works</div>
             {[
-              'Client reviews all bids when auction closes',
-              'Lowest bid is shown first but is not auto-selected',
-              'Client can factor in rating, note, and availability',
+              'All proposals are sealed until the deadline passes',
+              'Client reviews price, rating, and proposal together',
+              'Lowest price is not automatically selected',
               'Selected provider is notified immediately',
-              'Payment is held in escrow until job is confirmed done',
-              'Both sides leave a review after completion',
+              'Payment is held in escrow until work is confirmed done',
+              'Both sides leave a public review after completion',
             ].map((line) => (
               <div key={line} className="jd-how-row">
                 <span className="jd-how-check">✓</span>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { CheckCircle2, Circle, MapPin, Star } from 'lucide-react'
+import { BadgeCheck, CheckCircle2, Circle, MapPin, Star } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { api } from '../api'
 import { useAuthStore } from '../store'
@@ -66,6 +66,165 @@ function AvatarCircle({ name, avatar, size = 72 }) {
   return (
     <div className="pp-avatar-initials" style={{ width: size, height: size, fontSize: size * 0.34 }}>
       {getInitials(name)}
+    </div>
+  )
+}
+
+function BuyerProfile({ user, reviews, isSelf, navigate, memberSince }) {
+  const [postedJobs, setPostedJobs] = useState([])
+
+  useEffect(() => {
+    api.getJobs({ owner: user._id, status: 'all', limit: 6 })
+      .then(({ data }) => setPostedJobs(data.jobs || []))
+      .catch(() => {})
+  }, [user._id])
+
+  const avgRating = user.average_rating?.toFixed(1) || '5.0'
+  const totalReviews = reviews.length
+  const locationLabel = [user.city || 'Accra', 'Ghana'].filter(Boolean).join(', ')
+  const starBreakdown = [5, 4, 3, 2, 1].map((star) => ({
+    star,
+    count: reviews.filter((r) => r.rating === star).length,
+  }))
+
+  const verificationItems = [
+    { label: 'National ID verified', done: !!user.verified },
+    { label: 'Phone number verified', done: !!user.verified },
+    { label: 'Payment method verified', done: !!user.verified },
+    { label: 'Email verified', done: true },
+  ]
+
+  return (
+    <div className="pp-page">
+      <div className="pp-layout">
+        <div className="pp-main">
+
+          <div className="pp-hero-card">
+            <div className="pp-hero-top">
+              <div className="pp-hero-left">
+                <div className="pp-avatar-wrap">
+                  <AvatarCircle name={user.name} avatar={user.avatar} size={72} />
+                </div>
+                <div className="pp-hero-info">
+                  <div className="pp-hero-name-row">
+                    <h1 className="pp-hero-name">{user.name}</h1>
+                    {user.verified && <BadgeCheck size={20} className="pp-verified-icon" />}
+                  </div>
+                  <p className="pp-hero-tagline">{locationLabel}</p>
+                  <div className="pp-hero-meta">
+                    <span>Buyer</span>
+                    <span>·</span>
+                    <span><Star size={14} fill="#dca53a" stroke="#dca53a" /> {avgRating} rating</span>
+                    <span>·</span>
+                    <span>{postedJobs.length} jobs posted</span>
+                    <span>·</span>
+                    <span>Member since {memberSince(user.createdAt)}</span>
+                  </div>
+                </div>
+              </div>
+              {isSelf && (
+                <div className="pp-hero-actions">
+                  <button type="button" className="pp-btn-outline" onClick={() => navigate('/profile')}>
+                    Edit Profile
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <>
+            <div className="pp-stats-row">
+              <div className="pp-stat">
+                <span className="pp-stat-val">{avgRating}</span>
+                <span className="pp-stat-label">Avg. rating</span>
+              </div>
+              <div className="pp-stat">
+                <span className="pp-stat-val">{postedJobs.length}</span>
+                <span className="pp-stat-label">Jobs posted</span>
+              </div>
+              <div className="pp-stat">
+                <span className="pp-stat-val">{totalReviews}</span>
+                <span className="pp-stat-label">Reviews</span>
+              </div>
+              <div className="pp-stat">
+                <span className="pp-stat-val">{postedJobs.filter(j => j.status === 'completed').length}</span>
+                <span className="pp-stat-label">Jobs completed</span>
+              </div>
+            </div>
+
+            <div className="pp-card">
+              <h3 className="pp-section-head">About</h3>
+              <p className="pp-about-text">
+                {user.seller_profile?.bio || 'This buyer has not added a bio yet.'}
+              </p>
+            </div>
+
+          </>
+
+          <div className="pp-card">
+            <div className="pp-reviews-headbar">
+              <h3 className="pp-section-head">Ratings and reviews ({totalReviews} reviews)</h3>
+            </div>
+            <div className="pp-reviews-header">
+              <div className="pp-reviews-score">
+                <span className="pp-reviews-big">{avgRating}</span>
+                <StarRow rating={parseFloat(avgRating)} size={20} />
+                <span className="pp-reviews-count">{totalReviews} reviews</span>
+              </div>
+              <div className="pp-star-breakdown">
+                {starBreakdown.map(({ star, count }) => {
+                  const pct = totalReviews > 0 ? Math.round((count / totalReviews) * 100) : 0
+                  return (
+                    <div key={star} className="pp-sb-row">
+                      <span className="pp-sb-label">{star} ★</span>
+                      <div className="pp-sb-bar-track">
+                        <div className="pp-sb-bar-fill" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="pp-sb-pct">{pct}%</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="pp-review-list">
+              {reviews.length === 0 && <p className="pp-empty">No reviews yet.</p>}
+              {reviews.map((review) => (
+                <div key={review._id} className="pp-review-item">
+                  <div className="pp-ri-header">
+                    <div className="pp-ri-avatar">{getInitials(review.reviewer_id?.name || 'A')}</div>
+                    <div className="pp-ri-meta">
+                      <span className="pp-ri-name">{review.reviewer_id?.name || 'Anonymous'}</span>
+                      <span className="pp-ri-job">{review.job_id?.title || 'Completed job'} · {jobLocation(review.job_id)}</span>
+                      <span className="pp-ri-ago">{timeAgo(review.createdAt)}</span>
+                    </div>
+                    <div style={{ flexShrink: 0, paddingTop: 2 }}>
+                      <StarRow rating={review.rating} size={13} />
+                    </div>
+                  </div>
+                  {review.comment && <p className="pp-ri-comment">{review.comment}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+
+        <div className="pp-sidebar">
+          <div className="pp-sidebar-card">
+            <h4 className="pp-sidebar-head">Verification Status</h4>
+            <ul className="pp-verify-list">
+              {verificationItems.map((item) => (
+                <li key={item.label} className={`pp-verify-item ${item.done ? 'done' : 'na'}`}>
+                  {item.done
+                    ? <CheckCircle2 size={14} className="pp-vi-icon done" />
+                    : <Circle size={14} className="pp-vi-icon" />}
+                  {item.label}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -159,6 +318,10 @@ export default function ProviderProfilePage() {
   const isSelf = isAuthenticated && currentUser?._id === userId
   const isSeller = user.roles?.includes('seller')
 
+  if (!isSeller) {
+    return <BuyerProfile user={user} reviews={sortedReviews} isSelf={isSelf} navigate={navigate} memberSince={memberSince} />
+  }
+
   const verificationItems = [
     { label: 'National ID verified', done: verification.national_id_verified ?? user.verified },
     { label: 'Phone number verified', done: verification.phone_verified ?? user.verified },
@@ -200,17 +363,19 @@ export default function ProviderProfilePage() {
                 <div className="pp-hero-info">
                   <div className="pp-hero-name-row">
                     <h1 className="pp-hero-name">{user.name}</h1>
-                    {user.verified && <span className="pp-badge verified">✓ Verified Provider</span>}
+                    {user.verified && <BadgeCheck size={20} className="pp-verified-icon" />}
                     {user.average_rating >= 4.8 && totalReviews >= 10 && (
                       <span className="pp-badge top-rated">★ Top Rated</span>
                     )}
                   </div>
                   <p className="pp-hero-tagline">
                     {providerProfile.headline || user.seller_profile?.bio?.split('.')[0] ||
-                      (categoriesServed[0]?.name ? `${categoriesServed[0].name} specialist` : 'Service provider')}
-                    {' · '}{locationLabel}
+                      (categoriesServed[0]?.name ? `${categoriesServed[0].name} specialist` : locationLabel)}
+                    {providerProfile.headline || user.seller_profile?.bio || categoriesServed[0]?.name ? ` · ${locationLabel}` : ''}
                   </p>
                   <div className="pp-hero-meta">
+                    <span>Provider</span>
+                    <span>·</span>
                     <span><Star size={14} fill="#dca53a" stroke="#dca53a" /> {avgRating} rating</span>
                     <span>·</span>
                     <span>{user.total_jobs_completed || completedJobs.length} jobs completed</span>
@@ -255,18 +420,10 @@ export default function ProviderProfilePage() {
                 </div>
               </div>
 
-              {/* About */}
-              <div className="pp-card">
-                <h3 className="pp-section-head">About</h3>
-                <p className="pp-about-text">
-                  {user.seller_profile?.bio || 'This provider has not added a bio yet.'}
-                </p>
-              </div>
-
               {/* Skills */}
               {skills.length > 0 && (
                 <div className="pp-card">
-                  <h3 className="pp-section-head">Skills &amp; specialisations</h3>
+                  <h3 className="pp-section-head">Skills and specialisations</h3>
                   <div className="pp-skills">
                     {skills.map((s) => (
                       <span key={s} className="pp-skill-chip">{s}</span>
@@ -305,7 +462,7 @@ export default function ProviderProfilePage() {
           {/* ── Reviews ── */}
           <div className="pp-card">
               <div className="pp-reviews-headbar">
-                <h3 className="pp-section-head">Ratings &amp; reviews ({totalReviews} reviews)</h3>
+                <h3 className="pp-section-head">Ratings and reviews ({totalReviews} reviews)</h3>
                 <label className="pp-sort-wrap">
                   Sort:
                   <select value={reviewSort} onChange={(e) => setReviewSort(e.target.value)} className="pp-sort-select">
@@ -350,9 +507,6 @@ export default function ProviderProfilePage() {
                       <div className="pp-ri-meta">
                         <span className="pp-ri-name">{review.reviewer_id?.name || 'Anonymous'}</span>
                         <span className="pp-ri-job">{review.job_id?.title || 'Completed job'} · {jobLocation(review.job_id)}</span>
-                      </div>
-                      <div className="pp-ri-right">
-                        <StarRow rating={review.rating} size={13} />
                         <span className="pp-ri-ago">{timeAgo(review.createdAt)}</span>
                       </div>
                     </div>
@@ -368,51 +522,7 @@ export default function ProviderProfilePage() {
               </div>
             </div>
 
-          {/* ── Job History ── */}
-          <div className="pp-card">
-              <h3 className="pp-section-head">Job history ({completedJobs.length})</h3>
-              {completedJobs.length === 0 && <p className="pp-empty">No completed jobs yet.</p>}
-              <div className="pp-job-history-list">
-                {completedJobs.map((job) => (
-                  <div key={job._id} className="pp-jh-item">
-                    <div className="pp-jh-left">
-                      <span className="pp-rj-cat">{job.category}</span>
-                      <p className="pp-rj-title">{job.title}</p>
-                      <div className="pp-rj-meta">
-                        <MapPin size={11} /> {jobLocation(job)}
-                        <span className="pp-rj-ago">{timeAgo(job.completion_date)}</span>
-                      </div>
-                    </div>
-                    <div className="pp-jh-right">
-                      <span className="pp-rj-amount">GH¢ {job.budget}</span>
-                      <StarRow rating={job.average_rating || 5} size={12} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
 
-          {/* ── Availability ── */}
-          <div className="pp-card">
-              <h3 className="pp-section-head">Weekly availability</h3>
-              <div className="pp-avail-grid pp-avail-grid-lg">
-                <div className="pp-avail-days">
-                  {DAYS.map((d, i) => <span key={i} className="pp-avail-day">{d}</span>)}
-                </div>
-                {weeklyAvailability.map((row, ri) => (
-                  <div key={ri} className="pp-avail-row">
-                    {row.map((cell, ci) => (
-                      <span key={ci} className={`pp-avail-cell ${cell}`} />
-                    ))}
-                  </div>
-                ))}
-              </div>
-              <div className="pp-avail-legend">
-                <span className="pp-avail-cell available" /> Available
-                <span className="pp-avail-cell partial" /> Partial
-                <span className="pp-avail-cell off" /> Off
-              </div>
-            </div>
         </div>
 
         {/* ─── RIGHT SIDEBAR ─── */}
@@ -435,7 +545,7 @@ export default function ProviderProfilePage() {
 
           {/* Response & Reliability */}
           <div className="pp-sidebar-card">
-            <h4 className="pp-sidebar-head">Response &amp; Reliability</h4>
+            <h4 className="pp-sidebar-head">Response and Reliability</h4>
             <div className="pp-reliability">
               <div className="pp-rel-row">
                 <span className="pp-rel-label">Avg. response time</span>

@@ -1,27 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Wrench, BookOpen, Camera, Sparkles, Truck, Printer, UtensilsCrossed, Monitor, Star, ShieldCheck, TrendingDown, MapPin } from 'lucide-react'
 import { api } from '../api'
 
 const CITY_OPTIONS = ['All Cities', 'Accra', 'Kumasi', 'Takoradi', 'Tamale', 'Cape Coast']
 
 const CATEGORY_BLOCKS = [
-  { name: 'Home Repairs', icon: 'HR', query: 'Home Repairs' },
-  { name: 'Tutoring', icon: 'TU', query: 'Tutoring' },
-  { name: 'Photography', icon: 'PH', query: 'Photography' },
-  { name: 'Cleaning', icon: 'CL', query: 'Cleaning' },
-  { name: 'Delivery', icon: 'DL', query: 'Delivery' },
-  { name: 'Design & Print', icon: 'DP', query: 'Design & Print' },
-  { name: 'Catering', icon: 'CT', query: 'Catering' },
-  { name: 'IT & Tech Support', icon: 'IT', query: 'IT & Tech Support' },
-]
-
-const PLACEHOLDER_AREAS = [
-  'East Legon, Accra',
-  'Adum, Kumasi',
-  'Labone, Accra',
-  'Community 7, Tema',
-  'Airport Residential, Accra',
-  'KNUST Campus, Kumasi',
+  { name: 'Home Repairs', Icon: Wrench, query: 'Home Repairs' },
+  { name: 'Tutoring', Icon: BookOpen, query: 'Tutoring' },
+  { name: 'Photography', Icon: Camera, query: 'Photography' },
+  { name: 'Cleaning', Icon: Sparkles, query: 'Cleaning' },
+  { name: 'Delivery', Icon: Truck, query: 'Delivery' },
+  { name: 'Design & Print', Icon: Printer, query: 'Design & Print' },
+  { name: 'Catering', Icon: UtensilsCrossed, query: 'Catering' },
+  { name: 'IT & Tech Support', Icon: Monitor, query: 'IT & Tech Support' },
 ]
 
 function timeLeft(deadline) {
@@ -31,9 +23,15 @@ function timeLeft(deadline) {
   return { label: `${Math.ceil(h / 24)}d left`, urgent: false }
 }
 
+function getJobLocation(job) {
+  const d = job.intake_details || {}
+  return d.location || d.pickup_location || d.dropoff_location || d.event_location || ''
+}
+
 export default function HomePage() {
   const navigate = useNavigate()
   const [recentJobs, setRecentJobs] = useState([])
+  const [statsLoaded, setStatsLoaded] = useState(false)
   const [city, setCity] = useState(CITY_OPTIONS[0])
   const [stats, setStats] = useState({ listings: 0, providers: 0, avgSavingsPercent: 0, providerRating: 0 })
   const [categoryOpenCounts, setCategoryOpenCounts] = useState({})
@@ -65,11 +63,10 @@ export default function HomePage() {
         avgSavingsPercent: Number(market.savings?.avgSavingsPercent || 0),
         providerRating: Number(market.providers?.avgRating || 0),
       })
-    }).catch(() => {})
+      setStatsLoaded(true)
+    }).catch(() => { setStatsLoaded(true) })
 
-    return () => {
-      mounted = false
-    }
+    return () => { mounted = false }
   }, [])
 
   const featuredJobs = useMemo(() => recentJobs.slice(0, 6), [recentJobs])
@@ -113,20 +110,20 @@ export default function HomePage() {
           </div>
           <div className="landing-stat-row">
             <div className="landing-stat">
-              <strong>{stats.listings}</strong>
+              <strong>{statsLoaded ? stats.listings : '...'}</strong>
               <span>Active Requests</span>
             </div>
             <div className="landing-stat">
-              <strong>{stats.providers}</strong>
+              <strong>{statsLoaded ? stats.providers : '...'}</strong>
               <span>Verified Providers</span>
             </div>
             <div className="landing-stat">
-              <strong>{providerRating ? `avg ${providerRating} ★` : 'avg --'}</strong>
+              <strong>{statsLoaded ? (providerRating ? `${providerRating} ★` : '--') : '...'}</strong>
               <span>Provider Rating</span>
             </div>
             <div className="landing-stat">
-              <strong>{avgSavings}%</strong>
-              <span>Avg. Savings vs. Posted Budget</span>
+              <strong>{statsLoaded ? `${avgSavings}%` : '...'}</strong>
+              <span>Avg. Savings vs. Budget</span>
             </div>
           </div>
         </div>
@@ -138,18 +135,18 @@ export default function HomePage() {
           <div className="landing-how-grid">
             <article className="landing-how-card">
               <span className="landing-how-num">1</span>
-              <h3 className="landing-how-head">Post your job with a budget ceiling</h3>
-              <p>Describe what you need and set the maximum you are willing to pay. Your request goes live immediately to local providers.</p>
+              <h3 className="landing-how-head">Post your job with a price ceiling</h3>
+              <p>Say you need your polytank repaired in Adenta. You post the job and set GH¢ 950 as your maximum. It goes live immediately to every qualified plumber on the platform.</p>
             </article>
             <article className="landing-how-card">
               <span className="landing-how-num">2</span>
-              <h3 className="landing-how-head">Providers compete by bidding down</h3>
-              <p>Verified providers place bids below your ceiling. Every bid must undercut the current lowest, so prices move in your favour.</p>
+              <h3 className="landing-how-head">Providers compete with their best price</h3>
+              <p>Qualified providers review your job and submit their most competitive bid. You see every offer: no haggling, no back-and-forth, just transparent pricing working in your favour.</p>
             </article>
             <article className="landing-how-card">
               <span className="landing-how-num">3</span>
-              <h3 className="landing-how-head">Pick your provider and rate them</h3>
-              <p>Choose the best bid based on price, ratings, and reviews. After the job, your review is published publicly to keep providers accountable.</p>
+              <h3 className="landing-how-head">Pick your provider and pay on completion</h3>
+              <p>Review each provider's rating, completed jobs, and proposal. Award the contract, funds go into secure escrow, and the money releases only after you confirm the work is done.</p>
             </article>
           </div>
         </div>
@@ -162,11 +159,10 @@ export default function HomePage() {
             <button type="button" className="landing-link" onClick={() => navigate('/browse')}>View all requests</button>
           </div>
           <div className="landing-request-grid">
-            {featuredJobs.map((job, index) => {
+            {featuredJobs.map((job) => {
               const t = timeLeft(job.deadline)
-              const area = PLACEHOLDER_AREAS[index % PLACEHOLDER_AREAS.length]
               const closesLabel = t.label === 'Ended' ? 'Ended' : t.label.replace(' left', '')
-              const stars = (4.1 + ((job.bids_count || 0) % 9) / 10).toFixed(1)
+              const location = getJobLocation(job)
 
               return (
                 <article key={job._id} className="landing-request-card" onClick={() => navigate('/browse')}>
@@ -176,7 +172,12 @@ export default function HomePage() {
                   </div>
                   <div className="landing-request-body">
                     <h3 className="landing-request-title">{job.title}</h3>
-                    <div className="landing-location">Location: {area}</div>
+                    {location && (
+                      <div className="landing-location">
+                        <MapPin size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 3 }} />
+                        {location}
+                      </div>
+                    )}
                     <p className="landing-desc">{(job.description || '').slice(0, 120) || 'Request details are available on the listing page.'}</p>
                     <div className="landing-kpis">
                       <div>
@@ -195,7 +196,6 @@ export default function HomePage() {
                     <div className="landing-card-footer">
                       <div className="landing-provider">
                         <strong>{job.owner_id?.name || 'Client'}</strong>
-                        <div className="landing-rate">★★★★★ {stars}</div>
                       </div>
                       <button type="button" className="landing-bid-btn" onClick={(e) => { e.stopPropagation(); navigate('/browse') }}>Place Bid</button>
                     </div>
@@ -214,16 +214,18 @@ export default function HomePage() {
             <button type="button" className="landing-link" onClick={() => navigate('/browse')}>All categories</button>
           </div>
           <div className="landing-category-grid">
-            {CATEGORY_BLOCKS.map((category) => (
+            {CATEGORY_BLOCKS.map(({ name, Icon, query }) => (
               <button
-                key={category.name}
+                key={name}
                 type="button"
                 className="landing-category-card"
-                onClick={() => navigate(`/browse?category=${encodeURIComponent(category.query)}`)}
+                onClick={() => navigate(`/browse?category=${encodeURIComponent(query)}`)}
               >
-                <div className="landing-category-icon">{category.icon}</div>
-                <div className="landing-category-name">{category.name}</div>
-                <div className="landing-category-open">{categoryOpenCounts[category.name] || 0} open</div>
+                <div className="landing-category-icon">
+                  <Icon size={20} strokeWidth={1.8} />
+                </div>
+                <div className="landing-category-name">{name}</div>
+                <div className="landing-category-open">{categoryOpenCounts[name] || 0} open</div>
               </button>
             ))}
           </div>
@@ -235,19 +237,19 @@ export default function HomePage() {
           <h2 className="landing-section-title">Why BraFom is different</h2>
           <div className="landing-why-grid">
             <article className="landing-why-card">
-              <div className="landing-why-icon">★</div>
-              <h3 className="landing-why-head">Ratings solve the lemons problem</h3>
-              <p className="landing-why-copy">Every completed job requires both sides to leave a review. Providers with low ratings are deprioritised in search so quality providers naturally rise.</p>
+              <div className="landing-why-icon"><Star size={26} strokeWidth={1.6} color="#dca53a" /></div>
+              <h3 className="landing-why-head">Ratings keep providers honest</h3>
+              <p className="landing-why-copy">Every completed job requires a review from both sides. Providers with low ratings lose ground in search, so the best providers naturally rise to the top over time.</p>
             </article>
             <article className="landing-why-card">
-              <div className="landing-why-icon">✓</div>
+              <div className="landing-why-icon"><ShieldCheck size={26} strokeWidth={1.6} color="#1ea85a" /></div>
               <h3 className="landing-why-head">Verified providers only</h3>
-              <p className="landing-why-copy">Before bidding, every provider submits a national ID and completes a skills assessment relevant to their category for buyer confidence.</p>
+              <p className="landing-why-copy">Every provider submits a national ID and completes a skills assessment before they can bid. You see verification badges on each profile so you know who you are dealing with.</p>
             </article>
             <article className="landing-why-card">
-              <div className="landing-why-icon">↓</div>
+              <div className="landing-why-icon"><TrendingDown size={26} strokeWidth={1.6} color="#2563eb" /></div>
               <h3 className="landing-why-head">The price moves toward you</h3>
-              <p className="landing-why-copy">Unlike traditional platforms where you negotiate alone, providers actively undercut each other toward your ceiling until you select the winner.</p>
+              <p className="landing-why-copy">On most platforms you negotiate alone. Here, providers compete against each other and drive the price down from your ceiling until you pick your winner.</p>
             </article>
           </div>
         </div>
@@ -260,7 +262,29 @@ export default function HomePage() {
               <div className="landing-footer-logo">BraFom</div>
               <p className="landing-footer-copy">Reverse auction marketplace for local services across Ghana. Providers compete. You save.</p>
             </div>
-
+            <div className="landing-footer-col">
+              <h4>SERVICES</h4>
+              {['Home Repairs', 'Tutoring', 'Photography', 'Cleaning', 'Catering', 'IT & Tech Support'].map((cat) => (
+                <button key={cat} type="button" onClick={() => navigate(`/browse?category=${encodeURIComponent(cat)}`)}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+            <div className="landing-footer-col">
+              <h4>CITIES</h4>
+              {['Accra', 'Kumasi', 'Takoradi', 'Tamale', 'Cape Coast', 'Tema'].map((c) => (
+                <button key={c} type="button" onClick={() => navigate(`/browse?status=open&city=${encodeURIComponent(c)}`)}>
+                  {c}
+                </button>
+              ))}
+            </div>
+            <div className="landing-footer-col">
+              <h4>QUICK LINKS</h4>
+              <button type="button" onClick={() => navigate('/browse')}>Browse Requests</button>
+              <button type="button" onClick={() => navigate('/post-job')}>Post a Job</button>
+              <button type="button" onClick={() => navigate('/register')}>Create Account</button>
+              <button type="button" onClick={() => navigate('/login')}>Sign In</button>
+            </div>
           </div>
           <div className="landing-footer-bottom">© 2026 BraFom Technologies Ltd. Accra, Ghana</div>
         </div>

@@ -145,8 +145,8 @@ function BidModal({ job, onClose, onSubmit }) {
 
   const handleSubmit = async () => {
     const parsed = Number(amount)
-    if (!parsed || parsed < 50) { setError('Bid must be at least $50.'); return }
-    if (parsed > job.budget) { setError('Bid cannot exceed the budget cap.'); return }
+    if (!parsed || parsed <= 0) { setError('Please enter a valid bid amount.'); return }
+    if (parsed > job.budget) { setError('Bid cannot exceed the GH¢ budget ceiling.'); return }
     if (!timeline || Number(timeline) < 1) { setError('Timeline must be at least 1 day.'); return }
     if (!supervisionPlan.trim() || !milestonePlan.trim() || !categoryDetail.trim()) {
       setError('Please complete all proposal fields.')
@@ -192,7 +192,7 @@ function BidModal({ job, onClose, onSubmit }) {
               max={job.budget}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder={`Max $${Number(job.budget).toLocaleString()}`}
+              placeholder={`Max GH¢ ${Number(job.budget).toLocaleString()}`}
             />
           </div>
           <div className="form-group">
@@ -297,7 +297,7 @@ function RequestCard({ job, myBid, onBid, currentUserId }) {
               e.stopPropagation()
               if (ownerId) navigate(`/providers/${ownerId}`)
             }}
-            title={ownerId ? 'View client profile' : 'Profile unavailable'}
+            title={ownerId ? 'View buyer profile' : 'Profile unavailable'}
             disabled={!ownerId}
           >
             <AvatarInitials name={ownerName} size={32} />

@@ -40,7 +40,7 @@ export const useJobsStore = create((set, get) => ({
   loading: false,
 
   fetchJobs: async (params = {}) => {
-    set({ loading: true })
+    set({ loading: true, jobs: [] })
     try {
       const { data } = await api.getJobs(params)
       set({ jobs: data.jobs, loading: false })
@@ -54,7 +54,7 @@ export const useJobsStore = create((set, get) => ({
   fetchJob: async (id, options = {}) => {
     const { silent = false } = options
     if (!silent) {
-      set({ loading: true })
+      set({ loading: true, selectedJob: null })
     }
     try {
       const { data } = await api.getJob(id)

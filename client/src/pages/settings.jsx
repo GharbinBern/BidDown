@@ -3,11 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
   BadgeCheck,
+  Briefcase,
+  ChevronRight,
   CircleUserRound,
   CreditCard,
-  LogOut,
   Lock,
+  LogOut,
+  MapPin,
   ShieldCheck,
+  Star,
 } from 'lucide-react'
 import { api } from '../api'
 import { useAuthStore } from '../store'
@@ -21,38 +25,51 @@ function avatarBg(name) {
 }
 
 const CATEGORY_SPECIALISATIONS = {
-  'Home Repairs': [
-    'Leak detection',
-    'Fixture replacement',
-    'Wall patching',
-    'Door and lock repairs',
-    'Ceiling repairs',
-    'General maintenance',
-  ],
-  Electrical: [
-    'Wiring and rewiring',
-    'Socket replacement',
-    'Lighting installation',
-    'Circuit breaker fixes',
-    'Generator changeover setup',
-    'Fault diagnosis',
-  ],
-  Carpentry: [
-    'Custom shelving',
-    'Cabinet installation',
-    'Door fitting',
-    'Furniture repairs',
-    'Wardrobe build',
-    'Roof woodwork',
-  ],
-  Plumbing: [
-    'Pipe installation',
-    'Leak repairs',
-    'Water heater setup',
-    'Drain unclogging',
-    'Bathroom fittings',
-    'Pump servicing',
-  ],
+  'Home Repairs': ['Leak detection', 'Fixture replacement', 'Wall patching', 'Door and lock repairs', 'Ceiling repairs', 'General maintenance'],
+  Electrical: ['Wiring and rewiring', 'Socket replacement', 'Lighting installation', 'Circuit breaker fixes', 'Generator changeover setup', 'Fault diagnosis'],
+  Carpentry: ['Custom shelving', 'Cabinet installation', 'Door fitting', 'Furniture repairs', 'Wardrobe build', 'Roof woodwork'],
+  Plumbing: ['Pipe installation', 'Leak repairs', 'Water heater setup', 'Drain unclogging', 'Bathroom fittings', 'Pump servicing'],
+}
+
+function FieldLabel({ children }) {
+  return (
+    <span style={{ fontSize: 12, fontWeight: 600, color: '#4a5568', display: 'block', marginBottom: 7 }}>
+      {children}
+    </span>
+  )
+}
+
+function SectionPanel({ title, subtitle, children }) {
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #d8e0ea',
+      borderRadius: 12, overflow: 'hidden', marginBottom: 16,
+      boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    }}>
+      <div style={{ padding: '16px 22px', borderBottom: '1px solid #eaeff6' }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: '#1a2533', fontFamily: 'var(--font-head)', marginBottom: 2 }}>
+          {title}
+        </div>
+        {subtitle && <div style={{ color: '#7b8fa3', fontSize: 13 }}>{subtitle}</div>}
+      </div>
+      <div style={{ padding: '20px 22px' }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+const INPUT_STYLE = {
+  width: '100%',
+  background: '#fafbfd',
+  border: '1px solid #d0d8e4',
+  borderRadius: 8,
+  padding: '9px 13px',
+  fontSize: 14,
+  color: '#1a2533',
+  fontFamily: 'var(--font)',
+  outline: 'none',
+  boxSizing: 'border-box',
 }
 
 export default function SettingsPage() {
@@ -68,109 +85,77 @@ export default function SettingsPage() {
     phone_verified: false,
     background_check_cleared: false,
     skill_assessment_passed: false,
-    electrical_badge: false,
   })
   const phoneInputRef = useRef(null)
 
-  const deriveFormFromUser = (currentUser = {}) => {
-    const split = (currentUser?.name || '').trim().split(/\s+/).filter(Boolean)
+  const deriveForm = (u = {}) => {
+    const split = (u?.name || '').trim().split(/\s+/).filter(Boolean)
     return {
       firstName: split[0] || '',
       lastName: split.slice(1).join(' ') || '',
-      email: currentUser?.email || '',
-      phone: currentUser?.phone || '',
-      city: currentUser?.city || '',
-      neighbourhood: currentUser?.neighbourhood || '',
-      about: currentUser?.seller_profile?.bio || '',
-      category: currentUser?.primaryCategory || '',
+      email: u?.email || '',
+      phone: u?.phone || '',
+      city: u?.city || '',
+      neighbourhood: u?.neighbourhood || '',
+      about: u?.seller_profile?.bio || '',
+      category: u?.primaryCategory || '',
     }
   }
 
   const initials = useMemo(() => {
     const name = user?.name?.trim() || 'User'
-    return name
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase() || '')
-      .join('')
+    return name.split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() || '').join('')
   }, [user])
 
-  const [form, setForm] = useState(() => deriveFormFromUser(user || {}))
+  const [form, setForm] = useState(() => deriveForm(user || {}))
+  useEffect(() => { setForm(deriveForm(user || {})) }, [user])
 
+  const [activeSkills, setActiveSkills] = useState(() =>
+    Array.isArray(user?.skills) && user.skills.length ? user.skills : []
+  )
   useEffect(() => {
-    setForm(deriveFormFromUser(user || {}))
-  }, [user])
-
-  const [activeSkillTags, setActiveSkillTags] = useState(() => {
-    if (Array.isArray(user?.skills) && user.skills.length) return user.skills
-    return []
-  })
-
-  useEffect(() => {
-    if (Array.isArray(user?.skills) && user.skills.length) {
-      setActiveSkillTags(user.skills)
-    }
+    if (Array.isArray(user?.skills) && user.skills.length) setActiveSkills(user.skills)
   }, [user])
 
   const allSkillTags = useMemo(() => {
     const base = CATEGORY_SPECIALISATIONS[form.category] || []
-    const carryOver = activeSkillTags.filter((skill) => !base.includes(skill))
-    return [...base, ...carryOver]
-  }, [activeSkillTags, form.category])
+    const extras = activeSkills.filter((s) => !base.includes(s))
+    return [...base, ...extras]
+  }, [activeSkills, form.category])
 
   useEffect(() => {
     let cancelled = false
-
-    const loadMyProfile = async () => {
+    const load = async () => {
       if (!user?._id) return
       setLoadingProfile(true)
       try {
-        const [{ data: meData }, { data: profileData }] = await Promise.all([
-          api.getMe(),
-          api.getUserProfile(user._id),
-        ])
+        const [{ data: me }, { data: prof }] = await Promise.all([api.getMe(), api.getUserProfile(user._id)])
         if (cancelled) return
-
-        const mergedUser = {
-          ...meData,
-          city: profileData?.provider_profile?.city || meData?.city || '',
-          primaryCategory: meData?.primaryCategory || form.category || '',
-          skills: profileData?.provider_profile?.skills?.length
-            ? profileData.provider_profile.skills
-            : (Array.isArray(meData?.skills) ? meData.skills : []),
-          seller_profile: {
-            ...(meData?.seller_profile || {}),
-            bio: profileData?.user?.seller_profile?.bio || meData?.seller_profile?.bio || '',
-          },
+        const merged = {
+          ...me,
+          city: prof?.provider_profile?.city || me?.city || '',
+          primaryCategory: me?.primaryCategory || '',
+          skills: prof?.provider_profile?.skills?.length ? prof.provider_profile.skills : (Array.isArray(me?.skills) ? me.skills : []),
+          seller_profile: { ...(me?.seller_profile || {}), bio: prof?.user?.seller_profile?.bio || me?.seller_profile?.bio || '' },
         }
-
-        setUser(mergedUser)
-        setForm(deriveFormFromUser(mergedUser))
-        if (Array.isArray(mergedUser.skills) && mergedUser.skills.length) {
-          setActiveSkillTags(mergedUser.skills)
-        }
-
-        const verify = profileData?.provider_profile?.verification || {}
+        setUser(merged)
+        setForm(deriveForm(merged))
+        if (Array.isArray(merged.skills) && merged.skills.length) setActiveSkills(merged.skills)
+        const v = prof?.provider_profile?.verification || {}
         setVerificationState({
-          national_id_verified: !!verify.national_id_verified,
-          phone_verified: !!verify.phone_verified,
-          background_check_cleared: !!verify.background_check_cleared,
-          skill_assessment_passed: !!verify.skill_assessment_passed,
-          electrical_badge: !!verify.electrical_badge,
+          national_id_verified: !!v.national_id_verified,
+          phone_verified: !!v.phone_verified,
+          background_check_cleared: !!v.background_check_cleared,
+          skill_assessment_passed: !!v.skill_assessment_passed,
         })
       } catch (err) {
-        if (cancelled) return
-        const message = err?.response?.data?.error || 'Could not load profile details.'
-        toast.error(message)
+        if (!cancelled) toast.error(err?.response?.data?.error || 'Could not load profile.')
       } finally {
         if (!cancelled) setLoadingProfile(false)
       }
     }
-
-    loadMyProfile()
-    return () => {
-      cancelled = true
-    }
+    load()
+    return () => { cancelled = true }
   }, [user?._id])
 
   const profileName = `${form.firstName} ${form.lastName}`.trim()
@@ -182,100 +167,68 @@ export default function SettingsPage() {
       {
         key: 'national_id_verified',
         title: 'National ID',
+        detail: verificationState.national_id_verified ? 'Identity confirmed' : 'Upload your Ghana Card or passport',
         done: verificationState.national_id_verified,
-        detail: verificationState.national_id_verified ? 'ID verified' : 'Not done',
-        action: verificationState.national_id_verified ? 'View' : 'Start ID verification',
-        onAction: () => {
-          toast('ID verification submission will be enabled here soon.')
-        },
+        action: 'Start verification',
+        onAction: () => toast('ID verification will be available here soon.'),
       },
       {
         key: 'phone_verified',
         title: 'Phone number',
-        done: verificationState.phone_verified,
         detail: verificationState.phone_verified
-          ? `Verified (${form.phone || user?.phone || 'Phone number'})`
-          : (hasPhone ? 'Not done' : 'Not done (add phone number first)'),
-        action: verificationState.phone_verified
-          ? 'View'
-          : (hasPhone ? 'Send verification code' : 'Add phone number'),
+          ? `Verified · ${form.phone || user?.phone}`
+          : hasPhone ? 'Verify your number with a code' : 'Add a phone number first',
+        done: verificationState.phone_verified,
+        action: hasPhone ? 'Send code' : 'Add phone number',
         onAction: () => {
-          if (verificationState.phone_verified) {
-            toast.success('Phone number is already verified.')
-            return
-          }
-          if (!hasPhone) {
-            phoneInputRef.current?.focus()
-            toast('Add a phone number first, then save changes.')
-            return
-          }
-          toast('Phone OTP verification flow will be enabled here soon.')
+          if (!hasPhone) { phoneInputRef.current?.focus(); toast('Add a phone number above first.'); return }
+          toast('Phone verification will be available here soon.')
         },
       },
       {
         key: 'background_check_cleared',
         title: 'Background check',
+        detail: verificationState.background_check_cleared ? 'Check passed' : 'Builds trust with clients in your area',
         done: verificationState.background_check_cleared,
-        detail: verificationState.background_check_cleared ? 'Background check cleared' : 'Not done',
-        action: verificationState.background_check_cleared ? 'View' : 'Request background check',
-        onAction: () => {
-          toast('Background check request flow will be enabled here soon.')
-        },
+        action: 'Request check',
+        onAction: () => toast('Background check will be available here soon.'),
       },
       {
         key: 'skill_assessment_passed',
         title: 'Skill assessment',
+        detail: verificationState.skill_assessment_passed ? 'Assessment passed' : 'Demonstrate your expertise with a short test',
         done: verificationState.skill_assessment_passed,
-        detail: verificationState.skill_assessment_passed ? 'Assessment passed' : 'Not done',
-        action: verificationState.skill_assessment_passed ? 'View' : 'Take assessment',
-        onAction: () => {
-          toast('Skill assessment flow will be enabled here soon.')
-        },
+        action: 'Take assessment',
+        onAction: () => toast('Skill assessment will be available here soon.'),
       },
     ]
   }, [form.phone, user?.phone, verificationState])
 
   const updateField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }))
-
-  const toggleSkill = (skill) => {
-    setActiveSkillTags((prev) => (
-      prev.includes(skill) ? prev.filter((entry) => entry !== skill) : [...prev, skill]
-    ))
-  }
+  const toggleSkill = (s) => setActiveSkills((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s])
 
   const resetProfile = () => {
-    setForm(deriveFormFromUser(user || {}))
-    if (Array.isArray(user?.skills) && user.skills.length) {
-      setActiveSkillTags(user.skills)
-    }
+    setForm(deriveForm(user || {}))
+    if (Array.isArray(user?.skills)) setActiveSkills(user.skills)
     toast.success('Changes discarded.')
   }
 
   const saveProfile = async () => {
     try {
       setSavingProfile(true)
-      const payload = {
-        firstName: form.firstName,
-        lastName: form.lastName,
-        email: form.email,
-        phone: form.phone,
-        city: form.city,
-        neighbourhood: form.neighbourhood,
-        about: form.about,
-        primaryCategory: form.category,
-        skills: activeSkillTags,
-      }
-      const { data } = await api.updateMyProfile(payload)
-      const nextUser = {
-        ...data.user,
-        skills: activeSkillTags,
-      }
-      setUser(nextUser)
-      setForm(deriveFormFromUser(nextUser))
-      toast.success('Profile saved successfully.')
+      const { data } = await api.updateMyProfile({
+        firstName: form.firstName, lastName: form.lastName,
+        email: form.email, phone: form.phone,
+        city: form.city, neighbourhood: form.neighbourhood,
+        about: form.about, primaryCategory: form.category,
+        skills: activeSkills,
+      })
+      const next = { ...data.user, skills: activeSkills }
+      setUser(next)
+      setForm(deriveForm(next))
+      toast.success('Profile saved.')
     } catch (err) {
-      const message = err?.response?.data?.error || 'Could not save profile.'
-      toast.error(message)
+      toast.error(err?.response?.data?.error || 'Could not save profile.')
     } finally {
       setSavingProfile(false)
     }
@@ -284,212 +237,240 @@ export default function SettingsPage() {
   const saveSkills = async () => {
     try {
       setSavingSkills(true)
-      const payload = {
-        primaryCategory: form.category,
-        city: form.city,
-        skills: activeSkillTags,
-      }
-      const { data } = await api.updateMyProfile(payload)
-      const nextUser = {
-        ...data.user,
-        skills: activeSkillTags,
-      }
-      setUser(nextUser)
-      toast.success('Skills saved successfully.')
+      const { data } = await api.updateMyProfile({ primaryCategory: form.category, city: form.city, skills: activeSkills })
+      setUser({ ...data.user, skills: activeSkills })
+      toast.success('Skills saved.')
     } catch (err) {
-      const message = err?.response?.data?.error || 'Could not save skills.'
-      toast.error(message)
+      toast.error(err?.response?.data?.error || 'Could not save skills.')
     } finally {
       setSavingSkills(false)
     }
   }
 
-  const panelStyle = {
-    background: '#fff',
-    border: '1px solid #d4dbe5',
-    borderRadius: 12,
-    overflow: 'hidden',
-  }
+  const NAV_ITEMS = [
+    { label: 'Public Profile', icon: <CircleUserRound size={16} />, active: true },
+    { label: 'Verification',   icon: <ShieldCheck size={16} /> },
+    { label: 'Password & Security', icon: <Lock size={16} /> },
+    { label: 'Payment & Payouts',   icon: <CreditCard size={16} /> },
+  ]
 
-  const sectionTitleStyle = {
-    fontSize: 24,
-    fontWeight: 800,
-    lineHeight: 1,
-    color: 'var(--text)',
-    fontFamily: 'var(--font-head)',
-  }
-
-  const badgeStyle = (bg, color = '#1f2b37') => ({
-    background: bg,
-    color,
-    borderRadius: 5,
-    fontSize: 11,
-    fontWeight: 700,
-    lineHeight: 1,
-    padding: '5px 8px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 4,
-  })
-
-  const menuItem = (label, icon, active = false, muted = false) => (
-    <button
-      type="button"
-      style={{
-        display: 'flex',
-        width: '100%',
-        alignItems: 'center',
-        gap: 10,
-        border: 'none',
-        borderTop: '1px solid #e8edf3',
-        background: active ? '#f0f2f5' : '#fff',
-        color: muted ? '#8a97a8' : active ? '#1f2b37' : '#364658',
-        fontSize: 14,
-        fontWeight: active ? 700 : 500,
-        padding: '11px 14px',
-        textAlign: 'left',
-        cursor: 'pointer',
-      }}
-      onClick={() => {
-        if (label === 'Sign out') {
-          logout()
-          navigate('/')
-        }
-      }}
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
-  )
+  const FIELD_ROWS = [
+    { field: 'firstName',    label: 'First name',    type: 'text' },
+    { field: 'lastName',     label: 'Last name',     type: 'text' },
+    { field: 'email',        label: 'Email address', type: 'email' },
+    { field: 'phone',        label: 'Phone number',  type: 'tel', ref: phoneInputRef },
+    { field: 'city',         label: 'City',          type: 'text' },
+    { field: 'neighbourhood',label: 'Neighbourhood', type: 'text' },
+  ]
 
   return (
-    <div className="main" style={{ maxWidth: 1240, paddingTop: 12, opacity: loadingProfile ? 0.9 : 1 }}>
-      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        <aside style={{ flex: '1 1 270px', maxWidth: 290, minWidth: 250 }}>
-          <div style={panelStyle}>
-            <div style={{ padding: '18px 16px 14px', textAlign: 'center' }}>
+    <div className="main" style={{ maxWidth: 1120, paddingTop: 20, opacity: loadingProfile ? 0.85 : 1, transition: 'opacity 0.2s' }}>
+
+
+      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+
+        {/* ── Sidebar ── */}
+        <aside style={{ flex: '1 1 240px', maxWidth: 268, minWidth: 220 }}>
+          <div style={{
+            background: '#fff', border: '1px solid #d8e0ea',
+            borderRadius: 12, overflow: 'hidden',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+          }}>
+            {/* Avatar + identity */}
+            <div style={{ padding: '26px 18px 18px', textAlign: 'center', borderBottom: '1px solid #eaeff6' }}>
               <div style={{
-                width: 82,
-                height: 82,
-                borderRadius: '50%',
-                margin: '0 auto 10px',
+                width: 76, height: 76, borderRadius: '50%',
+                margin: '0 auto 14px',
                 background: avatarBg(user?.name),
                 color: '#fff',
-                border: 'none',
-                fontWeight: 800,
-                display: 'grid',
-                placeItems: 'center',
-                fontSize: 24,
+                display: 'grid', placeItems: 'center',
+                fontSize: 24, fontWeight: 800, fontFamily: 'var(--font-head)',
+                boxShadow: '0 0 0 4px #fff, 0 0 0 7px #e0e8f4',
               }}>
                 {initials || 'U'}
               </div>
-              <div style={{ fontSize: 21, fontWeight: 800, color: '#273646', marginBottom: 2, fontFamily: 'var(--font-head)' }}>{profileName || 'User'}</div>
-              <div style={{ color: '#75859a', fontSize: 13, marginBottom: 8 }}>Provider · {profileLocation}</div>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 14, paddingTop: 12, borderTop: '1px solid #e8edf3' }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#1a2533', fontFamily: 'var(--font-head)', lineHeight: 1.2, marginBottom: 5 }}>
+                {profileName || 'Your Name'}
+              </div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#8fa3b5', fontSize: 12 }}>
+                <MapPin size={12} />
+                {profileLocation}
+              </div>
+
+              {/* Stats */}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 28, marginTop: 16, paddingTop: 16, borderTop: '1px solid #eaeff6' }}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>{Number(user?.average_rating ?? 0).toFixed(1)}</div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Rating</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', lineHeight: 1, display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'center' }}>
+                    <Star size={13} color="#dca53a" fill="#dca53a" />
+                    {Number(user?.average_rating ?? 0).toFixed(1)}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Rating</div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>{user?.total_jobs_completed ?? 0}</div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Jobs done</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', lineHeight: 1, display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'center' }}>
+                    <Briefcase size={13} color="#6b7b8d" />
+                    {user?.total_jobs_completed ?? 0}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Jobs done</div>
                 </div>
               </div>
             </div>
-            {menuItem('Public Profile', <CircleUserRound size={16} />, true)}
-            {menuItem('Verification', <ShieldCheck size={16} />)}
-            {menuItem('Password & Security', <Lock size={16} />)}
-            {menuItem('Payment & Payouts', <CreditCard size={16} />)}
-            {menuItem('Sign out', <LogOut size={16} />)}
+
+            {/* Nav */}
+            <nav>
+              {NAV_ITEMS.map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  style={{
+                    display: 'flex', width: '100%',
+                    alignItems: 'center', justifyContent: 'space-between',
+                    gap: 10, border: 'none', borderBottom: '1px solid #eaeff6',
+                    borderLeft: `3px solid ${item.active ? 'var(--accent)' : 'transparent'}`,
+                    background: item.active ? '#fffbf2' : '#fff',
+                    color: item.active ? 'var(--accent)' : '#3a4d60',
+                    fontSize: 13, fontWeight: item.active ? 700 : 500,
+                    padding: '12px 16px', textAlign: 'left', cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
+                    {item.icon}
+                    {item.label}
+                  </span>
+                  <ChevronRight size={14} style={{ opacity: 0.35 }} />
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => { logout(); navigate('/') }}
+                style={{
+                  display: 'flex', width: '100%', alignItems: 'center', gap: 9,
+                  border: 'none', borderLeft: '3px solid transparent',
+                  background: '#fff', color: '#c0392b',
+                  fontSize: 13, fontWeight: 500,
+                  padding: '12px 16px', textAlign: 'left', cursor: 'pointer',
+                }}
+              >
+                <LogOut size={16} />
+                Sign out
+              </button>
+            </nav>
           </div>
         </aside>
 
-        <section style={{ flex: '2 1 700px', minWidth: 300 }}>
+        {/* ── Main content ── */}
+        <section style={{ flex: '2 1 580px', minWidth: 280 }}>
 
-          <div style={{ ...panelStyle, marginBottom: 14 }}>
-            <div style={{ padding: '14px 16px', borderBottom: '1px solid #e6ebf2' }}>
-              <div style={{ fontSize: 20, fontWeight: 800, color: '#2b3848', fontFamily: 'var(--font-head)' }}>Personal information</div>
-              <div style={{ marginTop: 2, color: '#7b899a', fontSize: 12 }}>Visible on your public provider profile</div>
+          {/* Personal information */}
+          <SectionPanel
+            title="Personal information"
+            subtitle="Visible on your public provider profile"
+          >
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 16 }}>
+              {FIELD_ROWS.map(({ field, label, type, ref }) => (
+                <label key={field} style={{ display: 'grid', gap: 0 }}>
+                  <FieldLabel>{label}</FieldLabel>
+                  <input
+                    ref={ref}
+                    type={type}
+                    value={form[field]}
+                    onChange={(e) => updateField(field, e.target.value)}
+                    placeholder={label}
+                    style={INPUT_STYLE}
+                    onFocus={(e) => { e.target.style.borderColor = 'var(--accent)' }}
+                    onBlur={(e) => { e.target.style.borderColor = '#d0d8e4' }}
+                  />
+                </label>
+              ))}
             </div>
-
-            <div style={{ padding: 16 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                <label style={{ display: 'grid', gap: 6 }}>
-                  <span style={{ fontSize: 12, color: '#5b6879', fontWeight: 600 }}>First name</span>
-                  <input className="input-field" value={form.firstName} onChange={(e) => updateField('firstName', e.target.value)} />
-                </label>
-                <label style={{ display: 'grid', gap: 6 }}>
-                  <span style={{ fontSize: 12, color: '#5b6879', fontWeight: 600 }}>Last name</span>
-                  <input className="input-field" value={form.lastName} onChange={(e) => updateField('lastName', e.target.value)} />
-                </label>
-                <label style={{ display: 'grid', gap: 6 }}>
-                  <span style={{ fontSize: 12, color: '#5b6879', fontWeight: 600 }}>Email address</span>
-                  <input className="input-field" type="email" value={form.email} onChange={(e) => updateField('email', e.target.value)} />
-                </label>
-                <label style={{ display: 'grid', gap: 6 }}>
-                  <span style={{ fontSize: 12, color: '#5b6879', fontWeight: 600 }}>Phone number</span>
-                  <input ref={phoneInputRef} className="input-field" value={form.phone} onChange={(e) => updateField('phone', e.target.value)} />
-                </label>
-                <label style={{ display: 'grid', gap: 6 }}>
-                  <span style={{ fontSize: 12, color: '#5b6879', fontWeight: 600 }}>City</span>
-                  <input className="input-field" value={form.city} onChange={(e) => updateField('city', e.target.value)} />
-                </label>
-                <label style={{ display: 'grid', gap: 6 }}>
-                  <span style={{ fontSize: 12, color: '#5b6879', fontWeight: 600 }}>Neighbourhood</span>
-                  <input className="input-field" value={form.neighbourhood} onChange={(e) => updateField('neighbourhood', e.target.value)} />
-                </label>
-              </div>
-              <label style={{ display: 'grid', gap: 6, marginTop: 12 }}>
-                <span style={{ fontSize: 12, color: '#5b6879', fontWeight: 600 }}>About me <span style={{ color: '#8a97a8', fontWeight: 500 }}>(shown on your public profile)</span></span>
-                <textarea className="input-field" rows={5} value={form.about} onChange={(e) => updateField('about', e.target.value)} />
-              </label>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-                <button type="button" className="btn btn-ghost" onClick={resetProfile}>Discard changes</button>
-                <button type="button" className="btn btn-primary" onClick={saveProfile} disabled={savingProfile}>
-                  {savingProfile ? 'Saving...' : 'Save changes'}
-                </button>
-              </div>
+            <label style={{ display: 'grid', gap: 0 }}>
+              <FieldLabel>
+                About me{' '}
+                <span style={{ color: '#9baab8', fontWeight: 400 }}>(shown on your public profile)</span>
+              </FieldLabel>
+              <textarea
+                rows={4}
+                value={form.about}
+                onChange={(e) => updateField('about', e.target.value)}
+                placeholder="Describe your experience and why clients should hire you..."
+                style={{ ...INPUT_STYLE, resize: 'vertical', lineHeight: 1.55 }}
+                onFocus={(e) => { e.target.style.borderColor = 'var(--accent)' }}
+                onBlur={(e) => { e.target.style.borderColor = '#d0d8e4' }}
+              />
+            </label>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18 }}>
+              <button
+                type="button"
+                onClick={resetProfile}
+                style={{
+                  border: '1px solid #d0d8e4', background: '#fff',
+                  borderRadius: 8, padding: '9px 18px',
+                  fontSize: 13, fontWeight: 600, color: '#3a4d60', cursor: 'pointer',
+                }}
+              >
+                Discard
+              </button>
+              <button
+                type="button"
+                onClick={saveProfile}
+                disabled={savingProfile}
+                style={{
+                  border: 'none', background: 'var(--accent)',
+                  borderRadius: 8, padding: '9px 22px',
+                  fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer',
+                  opacity: savingProfile ? 0.6 : 1,
+                }}
+              >
+                {savingProfile ? 'Saving...' : 'Save changes'}
+              </button>
             </div>
-          </div>
+          </SectionPanel>
 
+          {/* Skills & categories (sellers only) */}
           {isSeller && (
-            <div style={{ ...panelStyle, marginBottom: 14 }}>
-              <div style={{ padding: '14px 16px', borderBottom: '1px solid #e6ebf2', display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: '#2b3848', fontFamily: 'var(--font-head)' }}>Skills &amp; service categories</div>
-                  <div style={{ marginTop: 2, color: '#7b899a', fontSize: 12 }}>Used to match you with relevant job requests</div>
-                </div>
-                <button type="button" style={{ border: 'none', background: 'transparent', color: '#1f60a0', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>+ Add skill</button>
-              </div>
-              <div style={{ padding: 16 }}>
-                <label style={{ display: 'grid', gap: 6, maxWidth: 320 }}>
-                  <span style={{ fontSize: 12, color: '#5b6879', fontWeight: 600 }}>Primary category</span>
-                  <select className="input-field" value={form.category} onChange={(e) => updateField('category', e.target.value)}>
-                    <option value="">Select category</option>
-                    <option value="Home Repairs">Home Repairs</option>
-                    <option value="Electrical">Electrical</option>
-                    <option value="Carpentry">Carpentry</option>
-                    <option value="Plumbing">Plumbing</option>
-                  </select>
-                </label>
-                <div style={{ marginTop: 14 }}>
-                  <div style={{ fontSize: 12, color: '#5b6879', fontWeight: 600, marginBottom: 8 }}>Specialisations</div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <SectionPanel
+              title="Skills and service categories"
+              subtitle="Used to match you with relevant job requests on BidDown"
+            >
+              <label style={{ display: 'grid', gap: 0, maxWidth: 320, marginBottom: 20 }}>
+                <FieldLabel>Primary category</FieldLabel>
+                <select
+                  value={form.category}
+                  onChange={(e) => updateField('category', e.target.value)}
+                  style={{ ...INPUT_STYLE, cursor: 'pointer' }}
+                  onFocus={(e) => { e.target.style.borderColor = 'var(--accent)' }}
+                  onBlur={(e) => { e.target.style.borderColor = '#d0d8e4' }}
+                >
+                  <option value="">Select a category</option>
+                  <option value="Home Repairs">Home Repairs</option>
+                  <option value="Electrical">Electrical</option>
+                  <option value="Carpentry">Carpentry</option>
+                  <option value="Plumbing">Plumbing</option>
+                </select>
+              </label>
+
+              <div>
+                <FieldLabel>Specialisations</FieldLabel>
+                {allSkillTags.length === 0 ? (
+                  <p style={{ color: 'var(--muted)', fontSize: 13, margin: '6px 0 0' }}>
+                    Select a category above to see specialisations.
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
                     {allSkillTags.map((skill) => {
-                      const active = activeSkillTags.includes(skill)
+                      const on = activeSkills.includes(skill)
                       return (
                         <button
                           key={skill}
                           type="button"
                           onClick={() => toggleSkill(skill)}
                           style={{
-                            border: active ? '1px solid #8cb8e6' : '1px solid #d0d8e3',
-                            background: active ? '#e6f0fb' : '#f2f4f7',
-                            color: active ? '#205486' : '#4e5b6a',
-                            fontSize: 12,
-                            borderRadius: 4,
-                            padding: '6px 12px',
-                            cursor: 'pointer',
+                            border: on ? '1.5px solid #7ab2e6' : '1px solid #d0d8e4',
+                            background: on ? '#ddeefa' : '#f6f8fb',
+                            color: on ? '#1a4d80' : '#4e5b6a',
+                            fontSize: 13, fontWeight: on ? 700 : 500,
+                            borderRadius: 6, padding: '7px 14px',
+                            cursor: 'pointer', transition: 'all 0.15s',
                           }}
                         >
                           {skill}
@@ -497,38 +478,76 @@ export default function SettingsPage() {
                       )
                     })}
                   </div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
-                  <button type="button" className="btn btn-primary" onClick={saveSkills} disabled={savingSkills}>
-                    {savingSkills ? 'Saving...' : 'Save skills'}
-                  </button>
-                </div>
+                )}
               </div>
-            </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
+                <button
+                  type="button"
+                  onClick={saveSkills}
+                  disabled={savingSkills}
+                  style={{
+                    border: 'none', background: 'var(--accent)',
+                    borderRadius: 8, padding: '9px 22px',
+                    fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer',
+                    opacity: savingSkills ? 0.6 : 1,
+                  }}
+                >
+                  {savingSkills ? 'Saving...' : 'Save skills'}
+                </button>
+              </div>
+            </SectionPanel>
           )}
 
+          {/* Verification (sellers only) */}
           {isSeller && (
-            <div style={{ ...panelStyle, marginBottom: 14 }}>
-              <div style={{ padding: '14px 16px', borderBottom: '1px solid #e6ebf2' }}>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#2b3848', fontFamily: 'var(--font-head)' }}>Verification &amp; trust</div>
-                <div style={{ marginTop: 2, color: '#7b899a', fontSize: 12 }}>Complete these steps to strengthen your provider profile.</div>
-              </div>
-              <div style={{ padding: 16, display: 'grid', gap: 12 }}>
+            <SectionPanel
+              title="Verification and trust"
+              subtitle="Complete these steps to build credibility with clients and stand out on BidDown"
+            >
+              <div style={{ display: 'grid', gap: 10 }}>
                 {verificationRows.map((entry) => (
-                  <div key={entry.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, border: '1px solid #e8edf3', borderRadius: 8, padding: '10px 12px' }}>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                      <div style={{ width: 32, height: 32, borderRadius: 8, background: entry.done ? '#ecf3e4' : '#f5f7fa', display: 'grid', placeItems: 'center' }}>
-                        <BadgeCheck size={16} color={entry.done ? '#3f7b2c' : '#77879a'} />
+                  <div
+                    key={entry.key}
+                    style={{
+                      display: 'flex', alignItems: 'center',
+                      justifyContent: 'space-between', gap: 12,
+                      border: `1px solid ${entry.done ? '#c3e6c3' : '#e4eaf3'}`,
+                      borderRadius: 10, padding: '13px 16px',
+                      background: entry.done ? '#f4fbf4' : '#fff',
+                    }}
+                  >
+                    <div style={{ display: 'flex', gap: 13, alignItems: 'center' }}>
+                      <div style={{
+                        width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                        background: entry.done ? '#d4edd4' : '#f0f4f8',
+                        display: 'grid', placeItems: 'center',
+                      }}>
+                        <BadgeCheck size={18} color={entry.done ? '#2a7a2a' : '#9baab8'} />
                       </div>
                       <div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: '#2e3b4a' }}>{entry.title}</div>
-                        <div style={{ fontSize: 12, color: '#77879a' }}>{entry.detail}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#1a2533', marginBottom: 2 }}>{entry.title}</div>
+                        <div style={{ fontSize: 12, color: '#7b8fa3' }}>{entry.detail}</div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={badgeStyle('#f0f2f5', entry.done ? '#2f6d24' : '#77879a')}>{entry.done ? 'Done' : 'Not done'}</span>
-                      {!entry.done && (
-                        <button type="button" className="btn btn-ghost" onClick={entry.onAction} style={{ padding: '6px 10px', fontSize: 10 }}>
+                    <div style={{ flexShrink: 0 }}>
+                      {entry.done ? (
+                        <span style={{
+                          background: '#d4edd4', color: '#2a7a2a',
+                          borderRadius: 5, fontSize: 11, fontWeight: 700, padding: '4px 10px',
+                        }}>
+                          Done
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={entry.onAction}
+                          style={{
+                            border: '1px solid #c8d8ea', background: '#fff',
+                            borderRadius: 7, padding: '6px 13px',
+                            fontSize: 12, fontWeight: 600, color: '#3a4d60', cursor: 'pointer',
+                          }}
+                        >
                           {entry.action}
                         </button>
                       )}
@@ -536,19 +555,33 @@ export default function SettingsPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </SectionPanel>
           )}
 
-          <div style={{ ...panelStyle, borderColor: '#ebc3c0' }}>
-            <div style={{ background: '#fff5f5', borderBottom: '1px solid #ebc3c0', padding: '12px 16px' }}>
-              <div style={{ color: '#be3b2f', fontSize: 20, fontWeight: 800, fontFamily: 'var(--font-head)' }}>Danger zone</div>
-            </div>
-            <div style={{ padding: 16 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#2f3e4f', marginBottom: 4 }}>Deactivate account</div>
-              <div style={{ color: '#687889', fontSize: 12, maxWidth: 680, marginBottom: 12 }}>
-                Your profile will be hidden and all active bids will be withdrawn. You can reactivate at any time.
+          {/* Danger zone */}
+          <div style={{
+            background: '#fff', border: '1px solid #eac4c0',
+            borderRadius: 12, overflow: 'hidden',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+          }}>
+            <div style={{ background: '#fff8f7', padding: '14px 22px', borderBottom: '1px solid #eac4c0' }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#c0392b', fontFamily: 'var(--font-head)' }}>
+                Danger zone
               </div>
-              <button type="button" className="btn btn-ghost" style={{ borderColor: '#dcb6b3', color: '#a63b33' }}>
+            </div>
+            <div style={{ padding: '18px 22px' }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#2f3e4f', marginBottom: 4 }}>Deactivate account</div>
+              <div style={{ color: '#7b8fa3', fontSize: 13, maxWidth: 520, marginBottom: 16, lineHeight: 1.65 }}>
+                Your profile will be hidden and all active bids withdrawn. You can reactivate at any time by signing back in.
+              </div>
+              <button
+                type="button"
+                style={{
+                  border: '1px solid #eac4c0', background: '#fff',
+                  color: '#c0392b', borderRadius: 8, padding: '9px 18px',
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
                 Deactivate account
               </button>
             </div>
