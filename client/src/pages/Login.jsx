@@ -31,6 +31,20 @@ export default function LoginPage() {
     )
   }
 
+  const handleDemoLogin = async (role) => {
+    const demoEmail = role === 'buyer' ? 'demo.buyer@brafom.gh' : 'demo.seller@brafom.gh'
+    setLoading(true)
+    try {
+      await login(demoEmail, 'Demo1234')
+      toast.success('Logged in as demo ' + (role === 'buyer' ? 'client' : 'provider'))
+      navigate('/dashboard')
+    } catch {
+      toast.error('Demo login failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (mode === 'register' && password !== confirmPassword) {
@@ -130,6 +144,30 @@ export default function LoginPage() {
                 : (mode === 'login' ? 'Sign In' : 'Create Account')}
             </button>
           </form>
+
+          {mode === 'login' && (
+            <div className="demo-access">
+              <div className="demo-access-label">Just exploring? Try a demo account</div>
+              <div className="demo-access-row">
+                <button
+                  type="button"
+                  className="btn btn-secondary demo-access-btn"
+                  onClick={() => handleDemoLogin('buyer')}
+                  disabled={loading}
+                >
+                  Try as Client
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary demo-access-btn"
+                  onClick={() => handleDemoLogin('seller')}
+                  disabled={loading}
+                >
+                  Try as Provider
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

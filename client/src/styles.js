@@ -2121,6 +2121,28 @@ const styles = `
     background: var(--accent);
     color: #fff;
   }
+  .demo-access {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border2);
+    text-align: center;
+  }
+  .demo-access-label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    letter-spacing: 0.01em;
+  }
+  .demo-access-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+  .demo-access-btn {
+    flex: 1;
+    font-size: 13px;
+    padding: 9px 14px;
+  }
   .auth-stepbar {
     display: inline-flex;
     gap: 8px;

@@ -11,6 +11,8 @@ import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
 
+const DEMO_EMAILS = ['demo.buyer@brafom.gh', 'demo.seller@brafom.gh'];
+
 // Register
 router.post('/register', [
   body('email').isEmail(),
@@ -145,6 +147,10 @@ router.put('/me/profile', authMiddleware, [
     const user = await User.findById(req.userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (DEMO_EMAILS.includes(user.email) && req.body.email && req.body.email !== user.email) {
+      return res.status(403).json({ error: 'Demo account email cannot be changed.' });
     }
 
     const {

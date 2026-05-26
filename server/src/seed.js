@@ -1063,7 +1063,69 @@ async function createUsers() {
     });
   }
 
+  // Demo accounts — always seeded with known credentials for showcasing
+  const demoBuyer = new User({
+    email: 'demo.buyer@brafom.gh',
+    password: 'Demo1234',
+    name: 'Demo Client',
+    roles: ['buyer'],
+    verified: true,
+    seller_profile: { bio: 'Demo client account. Try the marketplace as a client — post jobs and review bids.' },
+  });
+  await demoBuyer.save();
+  buyers.push(demoBuyer);
+
+  const demoSeller = new User({
+    email: 'demo.seller@brafom.gh',
+    password: 'Demo1234',
+    name: 'Demo Provider',
+    roles: ['seller'],
+    verified: true,
+    seller_profile: {
+      bio: 'Demo provider account. Try the marketplace as a service provider — browse jobs and place bids.',
+      hourly_rate: 80,
+      portfolio_url: 'https://portfolio.brafom.gh/demo-provider',
+      skills: ['Home Repairs', 'General Maintenance', 'Cleaning', 'IT Support'],
+    },
+  });
+  await demoSeller.save();
+  sellers.push(demoSeller);
+  sellerCategoryMap.set(String(demoSeller._id), [...CATEGORIES]);
+
+  providerProfiles.push({
+    user_id: demoSeller._id,
+    headline: 'Multi-skilled professional delivering quality service across all categories',
+    city: 'Accra',
+    country: 'Ghana',
+    is_online: true,
+    verification: {
+      national_id_verified: true,
+      phone_verified: true,
+      background_check_cleared: true,
+      skill_assessment_passed: true,
+      callback_guarantee_active: true,
+      electrical_badge: false,
+    },
+    reliability: {
+      avg_response_minutes: 20,
+      bid_acceptance_rate: 85,
+      job_completion_rate: 97,
+      on_time_arrival_rate: 95,
+      repeat_clients: 12,
+      disputes_filed: 0,
+    },
+    skills: ['Home Repairs', 'General Maintenance', 'Cleaning', 'IT Support'],
+    categories_served: CATEGORIES.map((name) => ({ name, count: randomInt(2, 15) })),
+    weekly_availability: [
+      ['available', 'available', 'available', 'available', 'available', 'partial', 'off'],
+      ['available', 'available', 'available', 'available', 'partial', 'partial', 'off'],
+      ['available', 'available', 'available', 'available', 'available', 'off', 'off'],
+    ],
+  });
+
   if (providerProfiles.length) await ProviderProfile.insertMany(providerProfiles);
+
+  console.log('Demo accounts: demo.buyer@brafom.gh / demo.seller@brafom.gh  (password: Demo1234)');
 
   return { buyers, sellers, sellerCategoryMap };
 }

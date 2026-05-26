@@ -11,6 +11,7 @@ import reviewRoutes from './routes/reviews.js';
 import analyticsRoutes from './routes/analytics.js';
 
 import errorHandler from './middleware/errors.js';
+import { refreshOpenJobs, startJobRefreshSchedule } from './jobRefresh.js';
 
 dotenv.config();
 
@@ -46,6 +47,8 @@ if (hasPlaceholderMongoUri) {
     serverSelectionTimeoutMS: 5000,
   }).then(() => {
     console.log('Connected to MongoDB');
+    refreshOpenJobs();
+    startJobRefreshSchedule(6);
   }).catch(err => {
     console.warn('⚠ MongoDB connection error (development mode continues):', err.message);
   });
